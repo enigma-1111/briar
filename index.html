@@ -8,17 +8,18 @@
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body { margin: 0; background: #100e0c; color: #f4ead8; font: 17px/1.4 Georgia, serif; }
-  header { padding: 28px 18px 8px; background: radial-gradient(circle at 50% 120%, #3a2a16, #100e0c 68%); }
-  h1 { margin: 0; letter-spacing: .18em; font-weight: normal; font-size: 34px; }
-  h2 { font-weight: normal; letter-spacing: .08em; font-size: 16px; margin: 22px 16px 8px; }
+  header { padding: 32px 18px 12px; background: radial-gradient(circle at 50% 120%, #3a2a16, #100e0c 70%); }
+  h1 { margin: 0; letter-spacing: .18em; font-weight: normal; font-size: 36px; }
+  h2 { font-weight: normal; letter-spacing: .08em; font-size: 15px; margin: 22px 16px 8px; }
   a { color: #e2c27a; }
   .muted { color: #cbb892; }
-  .row { display: flex; gap: 12px; overflow-x: auto; padding: 4px 16px 18px; scroll-snap-type: x mandatory; }
-  .card { scroll-snap-align: start; min-width: 176px; background: #1a1612; border: 1px solid #4a3d28; border-radius: 14px; padding: 14px; }
+  .map { margin: 8px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .block { border: 1px solid #4a3d28; border-radius: 12px; padding: 12px; background: #1a1612; text-align: left; }
   .town { background: #1c2218; }
-  .card b { display: block; font-size: 18px; }
-  .kind { color: #e2c27a; font-size: 14px; }
-  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin-top: 8px; background: #e2c27a; color: #1a140c; }
+  .row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 16px 16px; }
+  .card { min-width: 168px; background: #1a1612; border: 1px solid #4a3d28; border-radius: 14px; padding: 14px; }
+  button { font: inherit; color: inherit; }
+  .card button, #act { border: 0; border-radius: 999px; padding: 8px 12px; margin-top: 8px; background: #e2c27a; color: #1a140c; }
   .sheet { position: fixed; inset: auto 0 0 0; background: #14120e; border-top: 1px solid #4a3d28; padding: 18px 18px 28px; transform: translateY(110%); transition: .2s; }
   .sheet.open { transform: none; }
   .line { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid #2c261c; }
@@ -29,67 +30,60 @@
 <body>
 <header>
   <h1>BRIAR</h1>
-  <p>The coin. Norham is the first city.</p>
-  <p class="muted">Old ballads only. Nothing is sold yet. <a href="rules.html">Rules</a></p>
+  <p>Norham. First city. Scarlet is the only street cut.</p>
+  <p class="muted">Nothing is sold yet. <a href="rules.html">Rules</a></p>
 </header>
-<h2>NOT FOR SALE</h2>
-<div class="row" id="commons"></div>
+<div class="map" id="map"></div>
 <h2>SCARLET</h2>
-<p class="muted" style="margin:0 16px 8px">The only street cut. Tap a door.</p>
 <div class="row" id="scarlet"></div>
-<h2>DRAWN, NOT CUT</h2>
-<div class="row" id="later"></div>
 <div class="sheet" id="sheet">
   <b id="name"></b>
-  <div class="kind" id="kind"></div>
+  <div class="muted" id="kind"></div>
   <div class="line"><span class="k">Inside</span><span id="rooms"></span></div>
-  <div class="line"><span class="k">You can</span><span id="does"></span></div>
+  <div class="line"><span class="k">Price</span><span id="price"></span></div>
   <button id="act">Open</button>
   <button class="ghost" id="close">Close</button>
   <p class="muted" id="note"></p>
 </div>
 <script>
-const commons = [
-  ["The Greenwood","wood","oaks and a track","walk, no shop"],
-  ["The Chapel","chapel","one room","not a key"],
-  ["The Gate","sheriff's gate","the toll","swap Briar, city takes a cut"],
-  ["Market","stalls","a day stall","sell goods, no parcel"],
-  ["The Inn","public room","one hearth","sit, not a key"]
+const places = [
+  ["Greenwood","wood","oaks","not for sale","town"],
+  ["Chapel","chapel","one room","not for sale","town"],
+  ["Gate","toll","swap Briar","city cut","town"],
+  ["Market","stalls","a day stall","not a key","town"],
+  ["Inn","public room","one hearth","not a key","town"],
+  ["Hearth","house","2 rooms","50 Briar","key"],
+  ["Loaf","shop","floor, back room","70 Briar","key"],
+  ["The Cup","inn","4 beds","160 Briar","key"],
+  ["Quill","shop","counter","80 Briar","key"],
+  ["Forge","workshop","work floor","140 Briar","key"],
+  ["Last Door","inn","5 beds","200 Briar","key"],
+  ["Marian","street","18 houses","not cut","later"],
+  ["John","street","18 houses","not cut","later"],
+  ["Much","mill street","16 houses","not cut","later"]
 ];
-const scarlet = [
-  ["Hearth","house","2 rooms","rent a room"],
-  ["Loaf","shop","floor and back room","sell bread, list a token"],
-  ["The Cup","inn","4 beds","rent a bed"],
-  ["Quill","shop","counter","list an NFT"],
-  ["Forge","workshop","work floor","make, no shop"],
-  ["Last Door","inn","5 beds","rent a bed"]
-];
-const later = [
-  ["Marian","houses","drawn","not for sale"],
-  ["John","houses","drawn","not for sale"],
-  ["Much","mill and houses","drawn","not for sale"]
-];
-function paint(id, list, town) {
-  const el = document.getElementById(id);
-  list.forEach(L => {
+places.forEach(p => {
+  if (p[4] === "key") {
     const d = document.createElement("article");
-    d.className = "card" + (town ? " town" : "");
-    d.innerHTML = "<b>"+L[0]+"</b><div class='kind'>"+L[1]+"</div><button>Open</button>";
-    d.querySelector("button").onclick = () => openPlace(L, town);
-    el.appendChild(d);
-  });
-}
-paint("commons", commons, true);
-paint("scarlet", scarlet, false);
-paint("later", later, true);
-function openPlace(L, town) {
-  name.textContent = L[0];
-  kind.textContent = L[1];
-  rooms.textContent = L[2];
-  does.textContent = L[3];
-  note.textContent = town ? "This belongs to Norham. It is not a key." : "A Briar key later. Nothing is sold yet.";
+    d.className = "card";
+    d.innerHTML = "<b>"+p[0]+"</b><div class='muted'>"+p[1]+"</div><button>Open</button>";
+    d.querySelector("button").onclick = () => openPlace(p);
+    scarlet.appendChild(d);
+  } else {
+    const b = document.createElement("button");
+    b.className = "block town";
+    b.innerHTML = "<b>"+p[0]+"</b><div class='muted'>"+p[3]+"</div>";
+    b.onclick = () => openPlace(p);
+    map.appendChild(b);
+  }
+});
+function openPlace(p) {
+  name.textContent = p[0];
+  kind.textContent = p[1];
+  rooms.textContent = p[2];
+  price.textContent = p[3];
+  note.textContent = p[4] === "key" ? "A Briar key later. Nothing is sold yet." : "Not a key.";
   act.disabled = false;
-  act.textContent = town ? "Enter" : "Look inside";
   sheet.classList.add("open");
 }
 act.onclick = () => { note.textContent = "Not open for money yet."; act.disabled = true; };
