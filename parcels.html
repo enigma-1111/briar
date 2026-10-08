@@ -17,17 +17,29 @@
 </head>
 <body>
 <div id="card"><b id="cname"></b><div class="muted" id="cmeta"></div><div id="cdoes"></div>
-  <button id="place">Place one block</button><button class="ghost" id="hide">Close</button></div>
+  <button id="place">Place one block</button><button id="bed" style="display:none">Rent a bed</button><button class="ghost" id="hide">Close</button></div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 const KEY = "briar.scarlet.blocks.v1";
+const BED = "briar.cup.bed.v1";
+const WEEK = 7 * 24 * 60 * 60 * 1000;
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+function bedHeld() {
+  try {
+    const b = JSON.parse(localStorage.getItem(BED) || "null");
+    if (!b || b.place !== "The Cup" || !b.until || b.until < Date.now()) return null;
+    return b;
+  } catch (e) { return null; }
+}
+function bedDays(b) {
+  return Math.max(1, Math.ceil((b.until - Date.now()) / 86400000));
+}
 const parcels = [
   ["The Inn","town",-4,0,0x6d5a40,"Public. Not a parcel you can buy."],
   ["Hearth","house",0,0,0x7a6248,"2 rooms. Open."],
   ["Loaf","shop",4,0,0x665444,"Floor and back room."],
-  ["The Cup","inn",8,0,0x5e5144,"4 beds."],
+  ["The Cup","inn",8,0,0x5e5144,"4 beds. A week rent. The box stays with the key."],
   ["Chapel","town",-4,5,0x3e443c,"Not for sale."],
   ["Market","town",2,5,0x5c5346,"Stalls. Not a key."],
   ["Gate","toll",6,5,0xc9a24a,"City keeps a tenth."]
@@ -92,10 +104,28 @@ renderer.domElement.addEventListener("pointerdown", e => {
   cmeta.textContent = selected.userData.kind + " parcel";
   cdoes.textContent = selected.userData.does;
   place.textContent = (selected.userData.kind === "town" || selected.userData.kind === "toll") ? "Town refuses" : (saved[selected.userData.name] ? "Block set" : "Place one block");
+  const cup = selected.userData.name === "The Cup";
+  bed.style.display = cup ? "inline-block" : "none";
+  if (cup) {
+    const held = bedHeld();
+    bed.textContent = held ? ("Bed held · " + bedDays(held) + "d") : "Rent a bed";
+    if (held) cdoes.textContent = "Bed held for " + bedDays(held) + " day" + (bedDays(held) === 1 ? "" : "s") + ". The box is not yours.";
+  }
   card.style.display = "block";
 });
 addEventListener("pointerup", () => look = false);
 addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX-lx)*0.006; lx = e.clientX; } });
+bed.onclick = () => {
+  if (!selected || selected.userData.name !== "The Cup") return;
+  const held = bedHeld();
+  if (held) {
+    cdoes.textContent = "Bed already held for " + bedDays(held) + " day" + (bedDays(held) === 1 ? "" : "s") + ". The box is not yours.";
+    return;
+  }
+  localStorage.setItem(BED, JSON.stringify({ place: "The Cup", until: Date.now() + WEEK }));
+  cdoes.textContent = "Bed rented for a week. Saved on this browser. The box stays closed.";
+  bed.textContent = "Bed held · 7d";
+};
 hide.onclick = () => card.style.display = "none";
 place.onclick = () => {
   if (!selected) return;
