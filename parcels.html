@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Norham parcels</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #10141c; overflow: hidden; touch-action: none; color: #f4ead8; font: 16px Georgia, serif; }
+  canvas { display: block; }
+  #card { position: fixed; left: 12px; right: 12px; bottom: 124px; display: none; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 8px 8px 0 0; background: #e2c27a; color: #1a140c; }
+  .ghost { background: transparent; color: #e2c27a; border: 1px solid #e2c27a; }
+  #stick { position: fixed; left: 16px; bottom: 16px; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); }
+  #knob { width: 42px; height: 42px; border-radius: 50%; background: #e2c27a; position: absolute; left: 31px; top: 31px; }
+  .muted { color: #cbb892; }
+</style>
+</head>
+<body>
+<div id="card"><b id="cname"></b><div class="muted" id="cmeta"></div><div id="cdoes"></div>
+  <button id="go">Enter parcel</button><button class="ghost" id="hide">Close</button></div>
+<div id="stick"><div id="knob"></div></div>
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+const parcels = [
+  ["The Inn","town",-4,0,0x6d5a40,"Public. Not a parcel you can buy."],
+  ["Hearth","house",0,0,0x7a6248,"2 rooms. Open."],
+  ["Loaf","shop",4,0,0x665444,"Floor and back room."],
+  ["The Cup","inn",8,0,0x5e5144,"4 beds."],
+  ["Chapel","town",-4,5,0x3e443c,"Not for sale."],
+  ["Market","town",2,5,0x5c5346,"Stalls. Not a key."],
+  ["Gate","toll",6,5,0xc9a24a,"City keeps a tenth."]
+];
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a2430);
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 60);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.prepend(renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 20), new THREE.MeshLambertMaterial({ color:0x2f5d3a }));
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+function blocks(color) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color });
+  for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) for (let z = 0; z < 3; z++) {
+    if (y === 1 && x === 1 && z === 2) continue;
+    const cube = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), mat);
+    cube.position.set(x - 1, y * 0.95 + 0.45, z - 1);
+    g.add(cube);
+  }
+  return g;
+}
+const meshes = parcels.map(p => {
+  const g = blocks(p[4]);
+  g.position.set(p[2], 0, p[3]);
+  g.userData = { name:p[0], kind:p[1], does:p[5] };
+  scene.add(g);
+  return g;
+});
+const player = { x: 2, z: -4, yaw: 0 };
+let joy = { x:0, y:0 }, look = false, lx = 0, selected = null;
+const stick = document.getElementById("stick"), knob = document.getElementById("knob");
+stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));
+stick.addEventListener("pointermove", e => {
+  if (!stick.hasPointerCapture(e.pointerId)) return;
+  const r = stick.getBoundingClientRect();
+  joy.x = Math.max(-1, Math.min(1, (e.clientX-r.left-52)/36));
+  joy.y = Math.max(-1, Math.min(1, (e.clientY-r.top-52)/36));
+  knob.style.left = 31+joy.x*26+"px"; knob.style.top = 31+joy.y*26+"px";
+});
+stick.addEventListener("pointerup", () => { joy={x:0,y:0}; knob.style.left="31px"; knob.style.top="31px"; });
+renderer.domElement.addEventListener("pointerdown", e => {
+  look = true; lx = e.clientX;
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1), camera);
+  const hit = ray.intersectObjects(meshes, true)[0];
+  if (!hit) return;
+  selected = hit.object.parent;
+  cname.textContent = selected.userData.name;
+  cmeta.textContent = selected.userData.kind + " parcel";
+  cdoes.textContent = selected.userData.does;
+  card.style.display = "block";
+});
+addEventListener("pointerup", () => look = false);
+addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX-lx)*0.006; lx = e.clientX; } });
+hide.onclick = () => card.style.display = "none";
+go.onclick = () => { cdoes.textContent = "Inside the parcel. The door was the missing block."; };
+function loop() {
+  player.x += Math.sin(player.yaw)*-joy.y*0.08 + Math.cos(player.yaw)*joy.x*0.08;
+  player.z += Math.cos(player.yaw)*-joy.y*0.08 - Math.sin(player.yaw)*joy.x*0.08;
+  camera.position.set(player.x, 1.6, player.z);
+  camera.lookAt(player.x+Math.sin(player.yaw), 1.4, player.z+Math.cos(player.yaw));
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+addEventListener("resize", () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+</script>
+</body>
+</html>
