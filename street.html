@@ -181,6 +181,38 @@ hangSign(-2.05, 7.2, 1, "Crooked Crow", "Old tavern board. The bird is painted, 
 hangSign(2.05, 11.2, -1, "Last Lamp", "Last lit board on Scarlet. Not a key.");
 hangSign(2.05, 3.1, -1, "Clerk", "A desk board by Quill. The counter stays the shop.");
 
+function streetLamp(x, z, n) {
+  const iron = new THREE.MeshStandardMaterial({ color: 0x2a2622, metalness: 0.4, roughness: 0.5 });
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.08, 2.2, 8), iron);
+  post.position.y = 1.1;
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.38), iron);
+  arm.position.set(0, 2.12, x > 0 ? -0.16 : 0.16);
+  const cage = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.3, 0.26), iron);
+  cage.position.set(0, 2.1, x > 0 ? -0.34 : 0.34);
+  const glass = new THREE.Mesh(
+    new THREE.SphereGeometry(0.09, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffc98a })
+  );
+  glass.position.copy(cage.position);
+  const glow = new THREE.PointLight(0xffb15a, 1.25, 7.2);
+  glow.position.copy(glass.position);
+  const grp = new THREE.Group();
+  grp.add(post, arm, cage, glass, glow);
+  grp.position.set(x, 0, z);
+  scene.add(grp);
+  doors.push({
+    x, z,
+    name: "Lamp " + n,
+    kind: "lamp",
+    line: "Warm light on Scarlet. A lamp is not a key.",
+    group: grp
+  });
+}
+[-12, -6, 0, 6, 12].forEach((z, i) => {
+  streetLamp(-2.4, z, i * 2 + 1);
+  streetLamp(2.4, z, i * 2 + 2);
+});
+
 const well = new THREE.Group();
 const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.82, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x6a7268 }));
 rim.position.y = 0.35;
@@ -223,12 +255,16 @@ function moveAxis(nx, nz) {
   if (!blocked(nx, player.z) && Math.abs(nx) < 3.15) player.x = nx;
   if (!blocked(player.x, nz) && nz > -15.4 && nz < 15.4) player.z = nz;
 }
-function refused(kind) { return kind === "town" || kind === "sign"; }
+function refused(kind) { return kind === "town" || kind === "sign" || kind === "lamp"; }
 place.onclick = () => {
   if (!current) return;
   card.dataset.lock = "1";
   if (refused(current.kind)) {
-    cdoes.textContent = current.kind === "sign" ? "A hanging board. The block is refused." : "Town parcel. The block is refused.";
+    cdoes.textContent = current.kind === "sign"
+      ? "A hanging board. The block is refused."
+      : current.kind === "lamp"
+        ? "A lamp. Not a key. The block is refused."
+        : "Town parcel. The block is refused.";
     return;
   }
   if (saved[current.name]) {
@@ -268,7 +304,7 @@ function loop() {
     current = near;
     cname.textContent = near.name;
     cdoes.textContent = near.kind + ". " + near.line;
-    place.textContent = refused(near.kind) ? "Board only" : (saved[near.name] ? "Block set" : "Place one block");
+    place.textContent = near.kind === "lamp" ? "Lamp only" : refused(near.kind) ? "Board only" : (saved[near.name] ? "Block set" : "Place one block");
     bed.style.display = near.name === "The Cup" ? "inline-block" : "none";
     if (near.name === "The Cup") {
       const held = bedHeld();
@@ -282,6 +318,12 @@ function loop() {
     card.style.display = "none";
     where.textContent = "on the cobbles";
   }
+  const now = performance.now();
+  doors.forEach(d => {
+    if (d.kind !== "lamp") return;
+    const glow = d.group.children[4];
+    if (glow) glow.intensity = 1.05 + Math.sin(now * 0.004 + d.z) * 0.22;
+  });
   camera.position.set(player.x, 1.6, player.z);
   camera.lookAt(player.x + fx, 1.45, player.z + fz);
   renderer.render(scene, camera);
