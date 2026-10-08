@@ -8,64 +8,80 @@
   html, body { margin: 0; height: 100%; background: #07080c; overflow: hidden; touch-action: none; color: #f4ead8; font: 16px/1.35 Georgia, serif; }
   canvas { display: block; }
   #hud { position: fixed; left: 14px; top: 12px; text-shadow: 0 1px 4px #000; pointer-events: none; }
-  #card { position: fixed; left: 12px; right: 12px; bottom: 132px; background: #14120ee6; border: 1px solid #4a3d28; border-radius: 14px; padding: 12px 14px; display: none; }
+  #card { position: fixed; left: 12px; right: 12px; bottom: 128px; background: #14120ef2; border: 1px solid #4a3d28; border-radius: 14px; padding: 12px 14px; display: none; }
   #card b { font-size: 20px; }
   .muted { color: #cbb892; }
   button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 8px 8px 0 0; background: #e2c27a; color: #1a140c; }
   .ghost { background: transparent; color: #e2c27a; border: 1px solid #e2c27a; }
-  #stick { position: fixed; left: 16px; bottom: 16px; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.5); }
-  #knob { width: 42px; height: 42px; border-radius: 50%; background: rgba(226,194,122,.85); position: absolute; left: 31px; top: 31px; }
+  #stick { position: fixed; left: 16px; bottom: 16px; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.55); z-index: 2; }
+  #knob { width: 42px; height: 42px; border-radius: 50%; background: rgba(226,194,122,.9); position: absolute; left: 31px; top: 31px; }
+  #mapbtn { position: fixed; right: 14px; top: 12px; }
 </style>
 </head>
 <body>
 <div id="hud">NORHAM<br><span id="where">Scarlet</span></div>
+<button id="mapbtn" class="ghost">Map</button>
 <div id="card">
-  <b id="cname">Hearth</b>
-  <div class="muted" id="cmeta">house · open</div>
-  <div id="cdoes">Two rooms. Rent one. The box stays with the key.</div>
+  <b id="cname"></b>
+  <div class="muted" id="cmeta"></div>
+  <div id="cdoes"></div>
   <button id="go">Go in</button>
+  <button id="take">Take key</button>
   <button class="ghost" id="hide">Close</button>
 </div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+const KEY = "briar.norham.v1";
+const save = JSON.parse(localStorage.getItem(KEY) || "{}");
+const you = save.you || "walker";
 const places = [
-  { name: "The Inn", kind: "town", x: -4, z: -3, color: 0x6d5a40, does: "Everyone can come in. Not a key." },
-  { name: "Loaf", kind: "shop", x: 4, z: -3, color: 0x7a6248, does: "Floor and back room. List bread or a token." },
-  { name: "The Cup", kind: "inn", x: -4, z: 5, color: 0x5e5144, does: "Four beds. Rent a bed, not the box." },
-  { name: "Hearth", kind: "house", x: 4, z: 5, color: 0x6a5846, does: "Two rooms. Rent one. The box stays with the key." }
+  { id: "inn", name: "The Inn", kind: "town", x: -5, z: -4, color: 0x6d5a40, does: "A public room. Not a key." },
+  { id: "market", name: "Market", kind: "town", x: 0, z: -6, color: 0x5c5346, does: "Stalls for the day. Not a parcel." },
+  { id: "wood", name: "Greenwood", kind: "town", x: -8, z: 6, color: 0x243024, does: "Oaks and a chapel. Not for sale." },
+  { id: "gate", name: "The Gate", kind: "town", x: 0, z: 8, color: 0x4a4036, does: "Swaps happen here. The city takes a cut." },
+  { id: "hearth", name: "Hearth", kind: "house", x: 5, z: -3, color: 0x7a6248, price: 50, does: "Two rooms. Rent one. The box stays with the key." },
+  { id: "loaf", name: "Loaf", kind: "shop", x: 5, z: 2, color: 0x6a5846, price: 70, does: "Floor and a back room. List bread or a token." },
+  { id: "cup", name: "The Cup", kind: "inn", x: -5, z: 2, color: 0x5e5144, price: 160, does: "Four beds. Rent a bed, not the box." },
+  { id: "quill", name: "Quill", kind: "shop", x: 5, z: 6, color: 0x685444, price: 80, does: "A counter. List an NFT." }
 ];
+places.forEach(p => { p.holder = save[p.id] || (p.kind === "town" ? "Norham" : "open"); });
+function persist() {
+  const next = { you };
+  places.forEach(p => { if (p.kind !== "town") next[p.id] = p.holder; });
+  localStorage.setItem(KEY, JSON.stringify(next));
+}
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x12151c);
-scene.fog = new THREE.Fog(0x12151c, 10, 32);
-const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 60);
+scene.fog = new THREE.Fog(0x12151c, 12, 36);
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 70);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 document.body.prepend(renderer.domElement);
-scene.add(new THREE.AmbientLight(0x8a93a8, 0.7));
-const warm = new THREE.PointLight(0xffb15a, 6, 18);
-warm.position.set(0, 4, 1);
+scene.add(new THREE.AmbientLight(0x8a93a8, 0.75));
+const warm = new THREE.PointLight(0xffb15a, 7, 20);
+warm.position.set(0, 4, 0);
 scene.add(warm);
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(28, 28), new THREE.MeshStandardMaterial({ color: 0x2c261e }));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), new THREE.MeshStandardMaterial({ color: 0x2c261e }));
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 const meshes = places.map(p => {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.6, 3.2), new THREE.MeshStandardMaterial({ color: p.color }));
-  body.position.y = 1.3;
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.5, 1.1, 4), new THREE.MeshStandardMaterial({ color: 0x1b140f }));
-  roof.position.y = 3.1;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.5, 3), new THREE.MeshStandardMaterial({ color: p.color }));
+  body.position.y = 1.25;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1, 4), new THREE.MeshStandardMaterial({ color: 0x1b140f }));
+  roof.position.y = 3;
   roof.rotation.y = Math.PI / 4;
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.4, 0.12), new THREE.MeshStandardMaterial({ color: 0xe2c27a }));
-  door.position.set(0, 0.7, 1.62);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.3, 0.1), new THREE.MeshStandardMaterial({ color: p.kind === "town" ? 0x8d9a78 : 0xe2c27a }));
+  door.position.set(0, 0.65, 1.52);
   g.add(body, roof, door);
   g.position.set(p.x, 0, p.z);
   g.userData = p;
   scene.add(g);
   return g;
 });
-const player = { x: 0, z: 1, yaw: 0 };
+const player = { x: 0, z: 0, yaw: 0 };
 let joy = { x: 0, y: 0 }, look = false, lx = 0, selected = null, inside = false;
 const stick = document.getElementById("stick"), knob = document.getElementById("knob");
 stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));
@@ -80,26 +96,28 @@ stick.addEventListener("pointermove", e => {
 function resetJoy() { joy = { x: 0, y: 0 }; knob.style.left = "31px"; knob.style.top = "31px"; }
 stick.addEventListener("pointerup", resetJoy);
 renderer.domElement.addEventListener("pointerdown", e => {
-  if (e.clientX < 130 && e.clientY > innerHeight - 140) return;
+  if (e.target !== renderer.domElement) return;
   look = true; lx = e.clientX;
   const ray = new THREE.Raycaster();
-  const m = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-  ray.setFromCamera(m, camera);
+  ray.setFromCamera(new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera);
   const hit = ray.intersectObjects(meshes, true)[0];
-  if (hit) select(hit.object.parent.userData?.name ? hit.object.parent : hit.object.parent.parent);
+  if (hit) openCard(hit.object.parent);
 });
 addEventListener("pointerup", () => look = false);
 addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX - lx) * 0.006; lx = e.clientX; } });
-const card = document.getElementById("card");
-function select(group) {
+function openCard(group) {
   selected = group;
   const p = group.userData;
   cname.textContent = p.name;
-  cmeta.textContent = p.kind === "town" ? "town place · not for sale" : p.kind + " · open";
+  cmeta.textContent = p.kind === "town" ? "town place · held by Norham" : p.kind + " · " + (p.holder === "open" ? "open · " + p.price + " Briar" : "held by " + p.holder);
   cdoes.textContent = p.does;
   go.textContent = "Go in";
+  take.style.display = p.kind === "town" ? "none" : "inline-block";
+  take.textContent = p.holder === you ? "Your key" : p.holder === "open" ? "Take key" : "Held";
+  take.disabled = p.holder !== "open" && p.holder !== you;
   card.style.display = "block";
   inside = false;
+  where.textContent = "Scarlet";
 }
 hide.onclick = () => { card.style.display = "none"; selected = null; inside = false; where.textContent = "Scarlet"; };
 go.onclick = () => {
@@ -107,14 +125,27 @@ go.onclick = () => {
   inside = !inside;
   where.textContent = inside ? selected.userData.name : "Scarlet";
   go.textContent = inside ? "Go out" : "Go in";
-  cdoes.textContent = inside ? "You are inside. The room is empty. Nothing is for rent yet." : selected.userData.does;
+  cdoes.textContent = inside ? "Inside. A bed, a lamp, a box you cannot open unless you hold the key." : selected.userData.does;
+};
+take.onclick = () => {
+  if (!selected) return;
+  const p = selected.userData;
+  if (p.kind === "town" || p.holder !== "open") return;
+  p.holder = you;
+  persist();
+  openCard(selected);
+  cdoes.textContent = "The key is yours on this phone. No coin has moved.";
+};
+mapbtn.onclick = () => {
+  const lines = places.map(p => p.name + " — " + (p.kind === "town" ? "town" : p.holder)).join("\n");
+  alert("NORHAM\nScarlet is the only street cut.\n\n" + lines);
 };
 function loop() {
   if (!inside) {
-    player.x += Math.sin(player.yaw) * -joy.y * 0.07 + Math.cos(player.yaw) * joy.x * 0.07;
-    player.z += Math.cos(player.yaw) * -joy.y * 0.07 - Math.sin(player.yaw) * joy.x * 0.07;
-    player.x = Math.max(-9, Math.min(9, player.x));
-    player.z = Math.max(-7, Math.min(10, player.z));
+    player.x += Math.sin(player.yaw) * -joy.y * 0.08 + Math.cos(player.yaw) * joy.x * 0.08;
+    player.z += Math.cos(player.yaw) * -joy.y * 0.08 - Math.sin(player.yaw) * joy.x * 0.08;
+    player.x = Math.max(-12, Math.min(12, player.x));
+    player.z = Math.max(-10, Math.min(12, player.z));
   }
   const px = inside && selected ? selected.position.x : player.x;
   const pz = inside && selected ? selected.position.z : player.z;
