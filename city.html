@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Norham</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #f4ead8; font: 18px/1.4 Georgia, serif; }
+  .scene { min-height: 100vh; background: #000 center/cover no-repeat; position: relative; }
+  .scene:after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 35%, #000 92%); }
+  .cap { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 22px 18px 32px; }
+  h1 { margin: 0 0 6px; letter-spacing: .14em; font-weight: normal; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 10px 14px; margin: 8px 8px 0 0; background: #e2c27a; color: #1a140c; }
+  .ghost { background: transparent; color: #e2c27a; border: 1px solid #e2c27a; }
+  .muted { color: #e6d7b8; }
+  a { color: #e2c27a; }
+</style>
+</head>
+<body>
+<div class="scene" id="scene">
+  <div class="cap">
+    <h1 id="title">THE INN</h1>
+    <p class="muted" id="line">Norham. Not a key.</p>
+    <button id="next">Walk on</button>
+    <button class="ghost" id="look">Look</button>
+    <p class="muted" id="note"></p>
+    <p><a href="index.html">The list</a></p>
+  </div>
+</div>
+<script>
+const spots = [
+  ["img/pub.jpg","THE INN","Not a key. Everyone can come in.","One hearth."],
+  ["img/green.jpg","THE GREEN","A park. Not for sale.","Benches. One lamp."],
+  ["img/street.jpg","SCARLET","The only street of keys.","Houses, shops, inns. Nothing is sold yet."],
+  ["img/market.jpg","MARKET","Stalls for the day.","Not a parcel."],
+  ["img/wood.jpg","THE GREENWOOD","Oaks and a chapel.","Not a key."],
+  ["img/wick.jpg","THE LANE","Warm windows. Wet stone.","A Briar key later."]
+];
+let i = 0;
+function show() {
+  const s = spots[i];
+  scene.style.backgroundImage = "url("+s[0]+")";
+  title.textContent = s[1];
+  line.textContent = s[2];
+  note.textContent = "";
+}
+next.onclick = () => { i = (i + 1) % spots.length; show(); };
+look.onclick = () => { note.textContent = spots[i][3]; };
+show();
+</script>
+</body>
+</html>
