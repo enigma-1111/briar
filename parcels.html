@@ -17,15 +17,39 @@
 </head>
 <body>
 <div id="card"><b id="cname"></b><div class="muted" id="cmeta"></div><div id="cdoes"></div>
-  <button id="place">Place one block</button><button id="bed" style="display:none">Rent a bed</button><button id="settle" style="display:none">Settle</button><button id="loft" style="display:none">Loft</button><button class="ghost" id="hide">Close</button></div>
+  <button id="place">Place one block</button><button id="bed" style="display:none">Rent a bed</button><button id="settle" style="display:none">Settle</button><button id="loft" style="display:none">Loft</button><button id="carry" style="display:none">Note the week</button><button class="ghost" id="hide">Close</button></div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 const KEY = "briar.scarlet.blocks.v1";
+const CARRY = "briar.scarlet.carry.v1";
+const KEYS = ["Hearth", "Loaf", "The Cup", "Quill", "Forge"];
 const BED = "briar.cup.bed.v1";
 const ROOM = "briar.hearth.rooms.v1";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+function carryBook() {
+  try { return JSON.parse(localStorage.getItem(CARRY) || "{}"); } catch (e) { return {}; }
+}
+function isKey(name) { return KEYS.indexOf(name) !== -1; }
+function restCarry(name) {
+  const book = carryBook();
+  if (book[name]) { delete book[name]; localStorage.setItem(CARRY, JSON.stringify(book)); }
+}
+function carryDue(name) {
+  if (!isKey(name) || saved[name]) return 0;
+  const book = carryBook();
+  if (!book[name] || !book[name].since) {
+    book[name] = { since: Date.now(), noted: 0 };
+    localStorage.setItem(CARRY, JSON.stringify(book));
+  }
+  return Math.max(1, Math.ceil((Date.now() - book[name].since) / WEEK));
+}
+function carryLine(name) {
+  if (!isKey(name)) return "";
+  if (saved[name]) return " Occupied. The carry rests.";
+  return " Empty key. Carrying fee: one wick a week. Due: " + carryDue(name) + ". Nothing is taken.";
+}
 function bedHeld() {
   try {
     const b = JSON.parse(localStorage.getItem(BED) || "null");
@@ -119,7 +143,9 @@ renderer.domElement.addEventListener("pointerdown", e => {
   selected = hit.object.parent;
   cname.textContent = selected.userData.name;
   cmeta.textContent = selected.userData.kind + " parcel";
-  cdoes.textContent = selected.userData.does;
+  cdoes.textContent = selected.userData.does + carryLine(selected.userData.name);
+  carry.style.display = isKey(selected.userData.name) && !saved[selected.userData.name] ? "inline-block" : "none";
+  if (isKey(selected.userData.name) && !saved[selected.userData.name]) carry.textContent = "Note the week · " + carryDue(selected.userData.name);
   place.textContent = (selected.userData.kind === "town" || selected.userData.kind === "toll") ? "Town refuses" : (saved[selected.userData.name] ? "Block set" : "Place one block");
   const cup = selected.userData.name === "The Cup";
   bed.style.display = cup ? "inline-block" : "none";
@@ -181,8 +207,19 @@ place.onclick = () => {
   putBlock(selected);
   saved[selected.userData.name] = 1;
   localStorage.setItem(KEY, JSON.stringify(saved));
-  cdoes.textContent = "One block placed. Saved on this browser.";
+  restCarry(selected.userData.name);
+  carry.style.display = "none";
+  cdoes.textContent = "One block placed. Occupied. The carry rests. Saved on this browser.";
   place.textContent = "Block set";
+};
+carry.onclick = () => {
+  if (!selected || !isKey(selected.userData.name) || saved[selected.userData.name]) return;
+  const book = carryBook();
+  const row = book[selected.userData.name] || { since: Date.now(), noted: 0 };
+  row.noted = (row.noted || 0) + 1;
+  book[selected.userData.name] = row;
+  localStorage.setItem(CARRY, JSON.stringify(book));
+  cdoes.textContent = "Week noted on " + selected.userData.name + ". Still nothing taken. Due: " + carryDue(selected.userData.name) + ".";
 };
 function loop() {
   player.x += Math.sin(player.yaw)*-joy.y*0.08 + Math.cos(player.yaw)*joy.x*0.08;

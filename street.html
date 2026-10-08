@@ -27,6 +27,7 @@
   <button id="loft" style="display:none">Loft</button>
   <input id="good" maxlength="32" placeholder="one good">
   <button id="list" style="display:none">List for the day</button>
+  <button id="carry" style="display:none">Note the week</button>
   <button id="hide">Close</button>
 </div>
 <div id="stick"><div id="knob"></div></div>
@@ -37,7 +38,9 @@ const KEY = "briar.scarlet.blocks.v1";
 const BED = "briar.cup.bed.v1";
 const ROOM = "briar.hearth.rooms.v1";
 const MKT = "briar.market.day.v1";
+const CARRY = "briar.scarlet.carry.v1";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
+const KEYS = ["Hearth", "Loaf", "The Cup", "Quill", "Forge"];
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
 function today() {
   const d = new Date();
@@ -379,8 +382,32 @@ place.onclick = () => {
   putBlock(current.group);
   saved[current.name] = 1;
   localStorage.setItem(KEY, JSON.stringify(saved));
-  cdoes.textContent = "One block placed on " + current.name + ". Saved on this browser.";
+  restCarry(current.name);
+  cdoes.textContent = "One block placed on " + current.name + ". Occupied. The carry rests. Saved on this browser.";
 };
+function carryBook() {
+  try { return JSON.parse(localStorage.getItem(CARRY) || "{}"); } catch (e) { return {}; }
+}
+function isKey(name) { return KEYS.indexOf(name) !== -1; }
+function restCarry(name) {
+  const book = carryBook();
+  if (book[name]) { delete book[name]; localStorage.setItem(CARRY, JSON.stringify(book)); }
+}
+function carryDue(name) {
+  if (!isKey(name) || saved[name]) return 0;
+  const book = carryBook();
+  if (!book[name] || !book[name].since) {
+    book[name] = { since: Date.now(), noted: 0 };
+    localStorage.setItem(CARRY, JSON.stringify(book));
+  }
+  return Math.max(1, Math.ceil((Date.now() - book[name].since) / WEEK));
+}
+function carryLine(name) {
+  if (!isKey(name)) return "";
+  if (saved[name]) return " Occupied. The carry rests.";
+  const due = carryDue(name);
+  return " Empty key. Carrying fee: one wick a week. Due: " + due + ". Nothing is taken.";
+}
 function rentRoom(name) {
   if (!current || current.name !== "Hearth") return;
   card.dataset.lock = "1";
@@ -424,6 +451,16 @@ list.onclick = () => {
   cdoes.textContent = current.name + " lists " + good + " today. Saved on this browser.";
   good.value = "";
 };
+carry.addEventListener("click", () => {
+  if (!current || !isKey(current.name) || saved[current.name]) return;
+  card.dataset.lock = "1";
+  const book = carryBook();
+  const row = book[current.name] || { since: Date.now(), noted: 0 };
+  row.noted = (row.noted || 0) + 1;
+  book[current.name] = row;
+  localStorage.setItem(CARRY, JSON.stringify(book));
+  cdoes.textContent = "Week noted on " + current.name + ". Still nothing taken. Due: " + carryDue(current.name) + ".";
+});
 hide.addEventListener("click", () => { card.dataset.lock = "1"; card.style.display = "none"; });
 
 function loop() {
@@ -440,7 +477,9 @@ function loop() {
     current = near;
     cname.textContent = near.name;
     if (near.kind === "stall") near.line = stallLine(near.name);
-    cdoes.textContent = near.kind + ". " + near.line;
+    cdoes.textContent = near.kind + ". " + near.line + carryLine(near.name);
+    carry.style.display = isKey(near.name) && !saved[near.name] ? "inline-block" : "none";
+    if (isKey(near.name) && !saved[near.name]) carry.textContent = "Note the week · " + carryDue(near.name);
     place.style.display = near.kind === "stall" ? "none" : "inline-block";
     place.textContent = near.kind === "lamp" ? "Lamp only" : refused(near.kind) ? "Board only" : (saved[near.name] ? "Block set" : "Place one block");
     bed.style.display = near.name === "The Cup" ? "inline-block" : "none";
