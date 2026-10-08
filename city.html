@@ -73,12 +73,14 @@ function open(p) {
   line.textContent = p[2];
   const held = save[p[0]];
   const walk = p[0] === "Greenwood";
-  act.style.display = (p[1] === "town" || p[1] === "later") && !walk ? "none" : "inline-block";
-  act.textContent = walk ? "Walk the Greenwood" : held ? "Held" : "Take key";
-  act.disabled = walk ? false : !!held;
+  const look = p[1] === "later";
+  act.style.display = (p[1] === "town" && !walk) ? "none" : "inline-block";
+  act.textContent = walk ? "Walk the Greenwood" : look ? "Look down the street" : held ? "Held" : "Take key";
+  act.disabled = (walk || look) ? false : !!held;
   sheet.style.display = "block";
   act.onclick = () => {
     if (current && current[0] === "Greenwood") { location.href = "greenwood.html"; return; }
+    if (current && current[1] === "later") { location.href = "locked.html?street=" + encodeURIComponent(current[0]); return; }
     save[p[0]] = "you";
     localStorage.setItem("briar.city.v1", JSON.stringify(save));
     bag.textContent = "Keys on this phone: " + Object.keys(save).join(", ");

@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-<div id="top">NORHAM · <b id="count">0</b> deployed<div class="muted">The Gate is the center. Scarlet doors are gold. Stalls are not parcels.</div></div>
+<div id="top">NORHAM · <b id="count">0</b> deployed<div class="muted">The Gate is the center. Scarlet doors are gold. Marian, John, and Much are drawn and locked.</div></div>
 <div id="sheet">
   <b id="name"></b>
   <div class="muted" id="meta"></div>
@@ -36,9 +36,9 @@ const scarlet = [
   ["Last Door","door",2,26,"Scarlet. End of the street."]
 ];
 const lockedStreets = [
-  ["Marian","locked",10,8,"Drawn. Not cut."],
-  ["John","locked",10,18,"Drawn. Not cut."],
-  ["Much","locked",10,26,"Drawn. Not cut."]
+  ["Marian","locked",8,8,"Drawn. Eighteen shutters. Not cut."],
+  ["John","locked",12,18,"Drawn. Eighteen shutters. Not cut."],
+  ["Much","locked",16,26,"Drawn. Sixteen shutters and a mill. Not cut."]
 ];
 const town = [
   ["The Gate","town",0,0,"A note, not a swap. The city keeps a tenth. No coin moves."],
@@ -64,7 +64,7 @@ scene.add(ground);
 const road = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 32), new THREE.MeshStandardMaterial({ color:0x3a332b }));
 road.position.set(0, 0.03, 14);
 scene.add(road);
-for (const x of [10]) {
+for (const x of [8, 12, 16]) {
   const lane = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.04, 24), new THREE.MeshStandardMaterial({ color:0x241e28 }));
   lane.position.set(x, 0.02, 16);
   scene.add(lane);
@@ -113,16 +113,18 @@ renderer.domElement.addEventListener("click", e => {
   const p = hit.object.userData;
   picked = p;
   name.textContent = p.name;
-  meta.textContent = p.kind === "door" ? "Scarlet · deployed" : p.kind === "wood" ? "town wood · not for sale" : p.kind === "locked" ? "locked" : "town";
+  meta.textContent = p.kind === "door" ? "Scarlet · deployed" : p.kind === "wood" ? "town wood · not for sale" : p.kind === "locked" ? "locked street · not cut" : "town";
   line.textContent = p.line;
-  go.disabled = p.kind !== "door" && p.kind !== "wood" && p.kind !== "stall";
-  go.textContent = p.kind === "door" ? "Walk Scarlet" : p.kind === "wood" ? "Walk the Greenwood" : p.kind === "stall" ? "Walk the stalls" : (p.name === "The Gate" ? "Note only" : "Locked");
+  go.disabled = p.kind !== "door" && p.kind !== "wood" && p.kind !== "stall" && p.kind !== "locked";
+  go.textContent = p.kind === "door" ? "Walk Scarlet" : p.kind === "wood" ? "Walk the Greenwood" : p.kind === "stall" ? "Walk the stalls" : p.kind === "locked" ? "Look down the street" : (p.name === "The Gate" ? "Note only" : "Locked");
   sheet.classList.add("open");
 });
 close.onclick = () => sheet.classList.remove("open");
 go.onclick = () => {
   if (go.disabled || !picked) return;
-  location.href = picked.kind === "wood" ? "greenwood.html" : "street.html";
+  if (picked.kind === "wood") location.href = "greenwood.html";
+  else if (picked.kind === "locked") location.href = "locked.html?street=" + encodeURIComponent(picked.name);
+  else location.href = "street.html";
 };
 function loop() {
   camera.position.set(Math.sin(yaw)*26, 16, Math.cos(yaw)*26);
