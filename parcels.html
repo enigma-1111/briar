@@ -17,10 +17,12 @@
 </head>
 <body>
 <div id="card"><b id="cname"></b><div class="muted" id="cmeta"></div><div id="cdoes"></div>
-  <button id="go">Enter parcel</button><button class="ghost" id="hide">Close</button></div>
+  <button id="place">Place one block</button><button class="ghost" id="hide">Close</button></div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+const KEY = "briar.scarlet.blocks.v1";
+const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
 const parcels = [
   ["The Inn","town",-4,0,0x6d5a40,"Public. Not a parcel you can buy."],
   ["Hearth","house",0,0,0x7a6248,"2 rooms. Open."],
@@ -52,10 +54,18 @@ function blocks(color) {
   }
   return g;
 }
+function putBlock(group) {
+  if (group.getObjectByName("walker-block")) return;
+  const cube = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), new THREE.MeshLambertMaterial({ color: 0xe2c27a }));
+  cube.name = "walker-block";
+  cube.position.set(0, 3.3, 0);
+  group.add(cube);
+}
 const meshes = parcels.map(p => {
   const g = blocks(p[4]);
   g.position.set(p[2], 0, p[3]);
   g.userData = { name:p[0], kind:p[1], does:p[5] };
+  if (saved[p[0]] && p[1] !== "town" && p[1] !== "toll") putBlock(g);
   scene.add(g);
   return g;
 });
@@ -81,12 +91,29 @@ renderer.domElement.addEventListener("pointerdown", e => {
   cname.textContent = selected.userData.name;
   cmeta.textContent = selected.userData.kind + " parcel";
   cdoes.textContent = selected.userData.does;
+  place.textContent = (selected.userData.kind === "town" || selected.userData.kind === "toll") ? "Town refuses" : (saved[selected.userData.name] ? "Block set" : "Place one block");
   card.style.display = "block";
 });
 addEventListener("pointerup", () => look = false);
 addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX-lx)*0.006; lx = e.clientX; } });
 hide.onclick = () => card.style.display = "none";
-go.onclick = () => { cdoes.textContent = "Inside the parcel. The door was the missing block."; };
+place.onclick = () => {
+  if (!selected) return;
+  const kind = selected.userData.kind;
+  if (kind === "town" || kind === "toll") {
+    cdoes.textContent = "Town parcel. The block is refused.";
+    return;
+  }
+  if (saved[selected.userData.name]) {
+    cdoes.textContent = "One block already sits on " + selected.userData.name + ".";
+    return;
+  }
+  putBlock(selected);
+  saved[selected.userData.name] = 1;
+  localStorage.setItem(KEY, JSON.stringify(saved));
+  cdoes.textContent = "One block placed. Saved on this browser.";
+  place.textContent = "Block set";
+};
 function loop() {
   player.x += Math.sin(player.yaw)*-joy.y*0.08 + Math.cos(player.yaw)*joy.x*0.08;
   player.z += Math.cos(player.yaw)*-joy.y*0.08 - Math.sin(player.yaw)*joy.x*0.08;
