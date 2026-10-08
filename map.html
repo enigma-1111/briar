@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-<div id="top">NORHAM · <b id="count">0</b> deployed<div class="muted">The Gate is the center. Scarlet doors are gold. The Greenwood is town wood.</div></div>
+<div id="top">NORHAM · <b id="count">0</b> deployed<div class="muted">The Gate is the center. Scarlet doors are gold. Stalls are not parcels.</div></div>
 <div id="sheet">
   <b id="name"></b>
   <div class="muted" id="meta"></div>
@@ -43,6 +43,7 @@ const lockedStreets = [
 const town = [
   ["The Gate","town",0,0,"A note, not a swap. The city keeps a tenth. No coin moves."],
   ["Well","town",0,28,"Water. Not a key."],
+  ["Market","stall",-6,10,"Apple, Cloth, Salt, Wick. A day list. Not a parcel."],
   ["Greenwood","wood",-8,-6,"Oaks and one chapel. Walk. Not for sale."]
 ];
 const scene = new THREE.Scene();
@@ -114,8 +115,8 @@ renderer.domElement.addEventListener("click", e => {
   name.textContent = p.name;
   meta.textContent = p.kind === "door" ? "Scarlet · deployed" : p.kind === "wood" ? "town wood · not for sale" : p.kind === "locked" ? "locked" : "town";
   line.textContent = p.line;
-  go.disabled = p.kind !== "door" && p.kind !== "wood";
-  go.textContent = p.kind === "door" ? "Walk Scarlet" : p.kind === "wood" ? "Walk the Greenwood" : (p.name === "The Gate" ? "Note only" : "Locked");
+  go.disabled = p.kind !== "door" && p.kind !== "wood" && p.kind !== "stall";
+  go.textContent = p.kind === "door" ? "Walk Scarlet" : p.kind === "wood" ? "Walk the Greenwood" : p.kind === "stall" ? "Walk the stalls" : (p.name === "The Gate" ? "Note only" : "Locked");
   sheet.classList.add("open");
 });
 close.onclick = () => sheet.classList.remove("open");

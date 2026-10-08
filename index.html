@@ -51,7 +51,7 @@ const places = [
   ["Greenwood","wood","oaks and one chapel","not for sale","town"],
   ["Chapel","chapel","one room","not for sale","town"],
   ["Gate","center","A note, not a swap. The city keeps a tenth. No coin moves.","city keeps a tenth","town"],
-  ["Market","stalls","a day stall","not a key","town"],
+  ["Market","stalls","a day stall, not a parcel","not a key","town"],
   ["Inn","public room","one hearth","not a key","town"],
   ["Hearth","house","2 rooms","50 Briar","key"],
   ["Loaf","shop","floor, back room","70 Briar","key"],
@@ -91,6 +91,9 @@ function openPlace(p) {
   if (p[0] === "Greenwood") {
     note.textContent = "Town wood. Oaks and one chapel. You can walk it. You cannot buy it.";
     act.textContent = "Walk the Greenwood";
+  } else if (p[0] === "Market") {
+    note.textContent = "Apple, Cloth, Salt, Wick. List one good for the day. Not a parcel.";
+    act.textContent = "Walk the stalls";
   } else if (p[0] === "Gate") {
     note.textContent = "Note only. No swap.";
     act.textContent = "Open";
@@ -105,6 +108,7 @@ function openPlace(p) {
 }
 act.onclick = () => {
   if (current && current[0] === "Greenwood") { location.href = "greenwood.html"; return; }
+  if (current && current[0] === "Market") { location.href = "street.html"; return; }
   note.textContent = "Not open for money yet.";
   act.disabled = true;
 };

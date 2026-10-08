@@ -10,7 +10,8 @@
   #hud { position: fixed; left: 14px; top: 12px; text-shadow: 0 2px 6px #000; pointer-events: none; }
   #card { position: fixed; left: 12px; right: 12px; bottom: 124px; display: none; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px 14px; }
   #card p { margin: 6px 0 10px; color: #e8dcc4; }
-  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin-right: 8px; background: #e2c27a; color: #1a140c; }
+  button, #good { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 0 8px 8px 0; background: #e2c27a; color: #1a140c; }
+  #good { display: none; width: 160px; background: #1a1612; color: #f4ead8; border: 1px solid #e2c27a; }
   #stick { position: fixed; left: 16px; bottom: 16px; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); touch-action: none; }
   #knob { width: 42px; height: 42px; border-radius: 50%; background: #e2c27a; position: absolute; left: 31px; top: 31px; }
 </style>
@@ -22,6 +23,8 @@
   <p id="cdoes"></p>
   <button id="place">Place one block</button>
   <button id="bed" style="display:none">Rent a bed</button>
+  <input id="good" maxlength="32" placeholder="one good">
+  <button id="list" style="display:none">List for the day</button>
   <button id="hide">Close</button>
 </div>
 <div id="stick"><div id="knob"></div></div>
@@ -30,8 +33,30 @@ import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 
 const KEY = "briar.scarlet.blocks.v1";
 const BED = "briar.cup.bed.v1";
+const MKT = "briar.market.day.v1";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+function today() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function marketBook() {
+  try {
+    const b = JSON.parse(localStorage.getItem(MKT) || "null");
+    if (!b || b.day !== today() || !b.goods) return { day: today(), goods: {} };
+    return b;
+  } catch (e) { return { day: today(), goods: {} }; }
+}
+function listed(name) {
+  const g = marketBook().goods[name];
+  return g ? String(g).slice(0, 32) : "";
+}
+function stallLine(name) {
+  const g = listed(name);
+  return g
+    ? ("Listed today: " + g + ". Not a parcel. Clears at midnight.")
+    : "Empty board. List one good for the day. Not a parcel.";
+}
 function bedHeld() {
   try {
     const b = JSON.parse(localStorage.getItem(BED) || "null");
@@ -167,13 +192,7 @@ function hangSign(x, z, faceStreet, label, line) {
   grp.position.set(x, 2.45, z);
   grp.rotation.y = faceStreet > 0 ? Math.PI / 2 : -Math.PI / 2;
   scene.add(grp);
-  doors.push({
-    x, z,
-    name: label,
-    kind: "sign",
-    line: line,
-    group: grp
-  });
+  doors.push({ x, z, name: label, kind: "sign", line, group: grp });
 }
 hangSign(-2.05, -1.1, 1, "Inn", "Painted board over The Cup. A bed, not the box.");
 hangSign(2.05, -5.1, -1, "Sweep", "A broom on the board. Not a house.");
@@ -213,6 +232,55 @@ function streetLamp(x, z, n) {
   streetLamp(2.4, z, i * 2 + 2);
 });
 
+function stall(x, z, name, cloth) {
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 0.8 });
+  const table = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.72, 0.7), wood);
+  table.position.y = 0.36;
+  const awning = new THREE.Mesh(
+    new THREE.BoxGeometry(1.28, 0.08, 0.86),
+    new THREE.MeshStandardMaterial({ color: cloth, roughness: 0.7 })
+  );
+  awning.position.set(0, 1.55, 0.05);
+  const poleL = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.2, 6), wood);
+  poleL.position.set(-0.52, 0.95, -0.28);
+  const poleR = poleL.clone();
+  poleR.position.x = 0.52;
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 96;
+  const g2 = c.getContext("2d");
+  g2.fillStyle = "#efe2c4";
+  g2.fillRect(0, 0, 256, 96);
+  g2.fillStyle = "#1c140c";
+  g2.font = "36px Georgia";
+  g2.textAlign = "center";
+  g2.textBaseline = "middle";
+  g2.fillText(name, 128, 48);
+  const board = new THREE.Mesh(
+    new THREE.BoxGeometry(0.72, 0.28, 0.04),
+    new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(c), roughness: 0.8 })
+  );
+  board.position.set(0, 1.15, 0.36);
+  const grp = new THREE.Group();
+  grp.add(table, awning, poleL, poleR, board);
+  grp.position.set(x, 0, z);
+  scene.add(grp);
+  addSolid(x, z, 1.15, 0.7);
+  doors.push({
+    x, z: z + 0.55,
+    name,
+    kind: "stall",
+    line: stallLine(name),
+    group: grp
+  });
+}
+[
+  ["Apple", 0xc45a3a],
+  ["Cloth", 0x3a5a78],
+  ["Salt", 0xd8d0c4],
+  ["Wick", 0xc4a24a]
+].forEach((s, i) => stall(-1.65 + i * 1.1, -13.4, s[0], s[1]));
+
 const well = new THREE.Group();
 const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.82, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x6a7268 }));
 rim.position.y = 0.35;
@@ -230,7 +298,7 @@ const endMat = new THREE.MeshStandardMaterial({ color: 0x2c261e });
   scene.add(wall);
 });
 
-const player = { x: 0, z: -12, yaw: 0 };
+const player = { x: 0, z: -11.2, yaw: Math.PI };
 const R = 0.38;
 let joy = { x: 0, y: 0 }, look = false, lx = 0, current = null;
 const stick = document.getElementById("stick"), knob = document.getElementById("knob");
@@ -255,16 +323,18 @@ function moveAxis(nx, nz) {
   if (!blocked(nx, player.z) && Math.abs(nx) < 3.15) player.x = nx;
   if (!blocked(player.x, nz) && nz > -15.4 && nz < 15.4) player.z = nz;
 }
-function refused(kind) { return kind === "town" || kind === "sign" || kind === "lamp"; }
+function refused(kind) { return kind === "town" || kind === "sign" || kind === "lamp" || kind === "stall"; }
 place.onclick = () => {
   if (!current) return;
   card.dataset.lock = "1";
   if (refused(current.kind)) {
-    cdoes.textContent = current.kind === "sign"
-      ? "A hanging board. The block is refused."
-      : current.kind === "lamp"
-        ? "A lamp. Not a key. The block is refused."
-        : "Town parcel. The block is refused.";
+    cdoes.textContent = current.kind === "stall"
+      ? "A day stall. Not a parcel. The block is refused."
+      : current.kind === "sign"
+        ? "A hanging board. The block is refused."
+        : current.kind === "lamp"
+          ? "A lamp. Not a key. The block is refused."
+          : "Town parcel. The block is refused.";
     return;
   }
   if (saved[current.name]) {
@@ -288,6 +358,22 @@ bed.onclick = () => {
   cdoes.textContent = "Bed rented for a week. Saved on this browser. The box stays closed.";
   bed.textContent = "Bed held · 7d";
 };
+list.onclick = () => {
+  if (!current || current.kind !== "stall") return;
+  card.dataset.lock = "1";
+  const good = (good.value || "").trim().slice(0, 32);
+  if (!good) {
+    cdoes.textContent = "Write one good. It lasts the day. Not a parcel.";
+    return;
+  }
+  const b = marketBook();
+  b.day = today();
+  b.goods[current.name] = good;
+  localStorage.setItem(MKT, JSON.stringify(b));
+  current.line = stallLine(current.name);
+  cdoes.textContent = current.name + " lists " + good + " today. Saved on this browser.";
+  good.value = "";
+};
 hide.addEventListener("click", () => { card.dataset.lock = "1"; card.style.display = "none"; });
 
 function loop() {
@@ -303,9 +389,13 @@ function loop() {
   if (near && card.dataset.lock !== "1") {
     current = near;
     cname.textContent = near.name;
+    if (near.kind === "stall") near.line = stallLine(near.name);
     cdoes.textContent = near.kind + ". " + near.line;
+    place.style.display = near.kind === "stall" ? "none" : "inline-block";
     place.textContent = near.kind === "lamp" ? "Lamp only" : refused(near.kind) ? "Board only" : (saved[near.name] ? "Block set" : "Place one block");
     bed.style.display = near.name === "The Cup" ? "inline-block" : "none";
+    list.style.display = near.kind === "stall" ? "inline-block" : "none";
+    good.style.display = near.kind === "stall" ? "inline-block" : "none";
     if (near.name === "The Cup") {
       const held = bedHeld();
       bed.textContent = held ? ("Bed held · " + bedDays(held) + "d") : "Rent a bed";
