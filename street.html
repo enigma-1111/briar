@@ -21,6 +21,7 @@
   <b id="cname"></b>
   <p id="cdoes"></p>
   <button id="place">Place one block</button>
+  <button id="bed" style="display:none">Rent a bed</button>
   <button id="hide">Close</button>
 </div>
 <div id="stick"><div id="knob"></div></div>
@@ -28,7 +29,19 @@
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 
 const KEY = "briar.scarlet.blocks.v1";
+const BED = "briar.cup.bed.v1";
+const WEEK = 7 * 24 * 60 * 60 * 1000;
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+function bedHeld() {
+  try {
+    const b = JSON.parse(localStorage.getItem(BED) || "null");
+    if (!b || b.place !== "The Cup" || !b.until || b.until < Date.now()) return null;
+    return b;
+  } catch (e) { return null; }
+}
+function bedDays(b) {
+  return Math.max(1, Math.ceil((b.until - Date.now()) / 86400000));
+}
 const gold = new THREE.MeshStandardMaterial({ color: 0xe2c27a, roughness: 0.45 });
 
 const cob = document.createElement("canvas");
@@ -119,7 +132,7 @@ function house(x, z, face, name, kind, line) {
 }
 house(-3.4, -8, 0xc4b49a, "Hearth", "house", "Two rooms. Open. One block, saved on this browser.");
 house(3.4, -4, 0x8a5a48, "Loaf", "shop", "Floor and a back room. Open. One block.");
-house(-3.4, 0, 0x6e5344, "The Cup", "inn", "Four beds. Open. One block.");
+house(-3.4, 0, 0x6e5344, "The Cup", "inn", "Four beds. A week rent. The box stays with the key.");
 house(3.4, 4, 0xb7a48c, "Quill", "shop", "A counter. Open. One block.");
 house(-3.4, 8, 0x4e4036, "Forge", "workshop", "Work floor. Open. One block.");
 house(3.4, 12, 0x7a4038, "Last Door", "inn", "Five beds. Open. The end of Scarlet.");
@@ -182,6 +195,18 @@ place.onclick = () => {
   localStorage.setItem(KEY, JSON.stringify(saved));
   cdoes.textContent = "One block placed on " + current.name + ". Saved on this browser.";
 };
+bed.onclick = () => {
+  if (!current || current.name !== "The Cup") return;
+  card.dataset.lock = "1";
+  const held = bedHeld();
+  if (held) {
+    cdoes.textContent = "Bed already held for " + bedDays(held) + " day" + (bedDays(held) === 1 ? "" : "s") + ". The box is not yours.";
+    return;
+  }
+  localStorage.setItem(BED, JSON.stringify({ place: "The Cup", until: Date.now() + WEEK }));
+  cdoes.textContent = "Bed rented for a week. Saved on this browser. The box stays closed.";
+  bed.textContent = "Bed held · 7d";
+};
 hide.addEventListener("click", () => { card.dataset.lock = "1"; card.style.display = "none"; });
 
 function loop() {
@@ -199,6 +224,11 @@ function loop() {
     cname.textContent = near.name;
     cdoes.textContent = near.kind + ". " + near.line;
     place.textContent = near.kind === "town" ? "Town refuses" : (saved[near.name] ? "Block set" : "Place one block");
+    bed.style.display = near.name === "The Cup" ? "inline-block" : "none";
+    if (near.name === "The Cup") {
+      const held = bedHeld();
+      bed.textContent = held ? ("Bed held · " + bedDays(held) + "d") : "Rent a bed";
+    }
     card.style.display = "block";
     where.textContent = near.name;
   } else if (!near) {
