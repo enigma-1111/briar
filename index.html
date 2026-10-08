@@ -32,7 +32,7 @@
 <header>
   <h1>BRIAR</h1>
   <p>Norham. First city. Scarlet is the only street cut.</p>
-  <p class="muted">Nothing is sold yet. <a href="rules.html">Rules</a></p>
+  <p class="muted">Nothing is sold yet. <a href="rules.html">Rules</a> · <a href="greenwood.html">Greenwood</a></p>
 </header>
 <div class="map" id="map"></div>
 <h2>SCARLET</h2>
@@ -48,7 +48,7 @@
 </div>
 <script>
 const places = [
-  ["Greenwood","wood","oaks","not for sale","town"],
+  ["Greenwood","wood","oaks and one chapel","not for sale","town"],
   ["Chapel","chapel","one room","not for sale","town"],
   ["Gate","center","A note, not a swap. The city keeps a tenth. No coin moves.","city keeps a tenth","town"],
   ["Market","stalls","a day stall","not a key","town"],
@@ -65,6 +65,7 @@ const places = [
 ];
 const map = document.getElementById("map");
 const row = document.getElementById("scarlet");
+let current = null;
 places.forEach(p => {
   if (p[4] === "key") {
     const d = document.createElement("article");
@@ -81,15 +82,32 @@ places.forEach(p => {
   }
 });
 function openPlace(p) {
+  current = p;
   name.textContent = p[0];
   kind.textContent = p[1];
   rooms.textContent = p[2];
   price.textContent = p[3];
-  note.textContent = p[0] === "Gate" ? "Note only. No swap." : (p[4] === "key" ? "A Briar key later. Nothing is sold yet." : "Not a key.");
   act.disabled = false;
+  if (p[0] === "Greenwood") {
+    note.textContent = "Town wood. Oaks and one chapel. You can walk it. You cannot buy it.";
+    act.textContent = "Walk the Greenwood";
+  } else if (p[0] === "Gate") {
+    note.textContent = "Note only. No swap.";
+    act.textContent = "Open";
+  } else if (p[4] === "key") {
+    note.textContent = "A Briar key later. Nothing is sold yet.";
+    act.textContent = "Open";
+  } else {
+    note.textContent = "Not a key.";
+    act.textContent = "Open";
+  }
   sheet.classList.add("open");
 }
-act.onclick = () => { note.textContent = "Not open for money yet."; act.disabled = true; };
+act.onclick = () => {
+  if (current && current[0] === "Greenwood") { location.href = "greenwood.html"; return; }
+  note.textContent = "Not open for money yet.";
+  act.disabled = true;
+};
 close.onclick = () => sheet.classList.remove("open");
 </script>
 </body>

@@ -32,7 +32,7 @@
     <p>Briar is the toll. A key is a building. Rent pays the holder. The Gate is the center. A note says the city keeps a tenth. No real swap. Town places cannot be bought. Empty keys pay a weekly carrying fee so they move.</p>
     <p class="muted">No airdrop. No burn. No promised profit.</p>
   </article>
-  <p><a href="walk.html">Walk</a> · <a href="voxels.html">Chunks</a> · <a href="rules.html">Rules</a></p>
+  <p><a href="walk.html">Walk</a> · <a href="greenwood.html">Greenwood</a> · <a href="voxels.html">Chunks</a> · <a href="rules.html">Rules</a></p>
 </main>
 <div id="sheet">
   <b id="name"></b>
@@ -43,7 +43,7 @@
 </div>
 <script>
 const places = [
-  ["Greenwood","town","Walk. Not a key."],
+  ["Greenwood","town","Oaks and one chapel. Walk. Not for sale."],
   ["Chapel","town","One room. Not a key."],
   ["Gate","town","A note, not a swap. The city keeps a tenth. No coin moves."],
   ["Market","town","A day stall. Not a parcel."],
@@ -58,6 +58,7 @@ const places = [
 ];
 const save = JSON.parse(localStorage.getItem("briar.city.v1") || "{}");
 const city = document.getElementById("city");
+let current = null;
 places.forEach(p => {
   const b = document.createElement("button");
   b.className = "card" + (p[1] === "key" || p[1] === "house" || p[1] === "shop" || p[1] === "inn" ? "" : " town");
@@ -66,15 +67,18 @@ places.forEach(p => {
   city.appendChild(b);
 });
 function open(p) {
+  current = p;
   name.textContent = p[0];
   meta.textContent = p[1];
   line.textContent = p[2];
   const held = save[p[0]];
-  act.style.display = p[1] === "town" || p[1] === "later" ? "none" : "inline-block";
-  act.textContent = held ? "Held" : "Take key";
-  act.disabled = !!held;
+  const walk = p[0] === "Greenwood";
+  act.style.display = (p[1] === "town" || p[1] === "later") && !walk ? "none" : "inline-block";
+  act.textContent = walk ? "Walk the Greenwood" : held ? "Held" : "Take key";
+  act.disabled = walk ? false : !!held;
   sheet.style.display = "block";
   act.onclick = () => {
+    if (current && current[0] === "Greenwood") { location.href = "greenwood.html"; return; }
     save[p[0]] = "you";
     localStorage.setItem("briar.city.v1", JSON.stringify(save));
     bag.textContent = "Keys on this phone: " + Object.keys(save).join(", ");

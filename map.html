@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-<div id="top">NORHAM · <b id="count">0</b> deployed<div class="muted">The Gate is the center. Scarlet doors are gold. Marian, John, Much stay locked.</div></div>
+<div id="top">NORHAM · <b id="count">0</b> deployed<div class="muted">The Gate is the center. Scarlet doors are gold. The Greenwood is town wood.</div></div>
 <div id="sheet">
   <b id="name"></b>
   <div class="muted" id="meta"></div>
@@ -42,7 +42,8 @@ const lockedStreets = [
 ];
 const town = [
   ["The Gate","town",0,0,"A note, not a swap. The city keeps a tenth. No coin moves."],
-  ["Well","town",0,28,"Water. Not a key."]
+  ["Well","town",0,28,"Water. Not a key."],
+  ["Greenwood","wood",-8,-6,"Oaks and one chapel. Walk. Not for sale."]
 ];
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x120c1c);
@@ -72,6 +73,7 @@ const stone = new THREE.MeshStandardMaterial({ color:0x4a4038 });
 const lockedMat = new THREE.MeshStandardMaterial({ color:0x2a313c });
 const gold = new THREE.MeshStandardMaterial({ color:0xe2c27a, emissive:0x5a4010, emissiveIntensity:0.35 });
 const townMat = new THREE.MeshStandardMaterial({ color:0x6a6258 });
+const woodMat = new THREE.MeshStandardMaterial({ color:0x2f6a34, emissive:0x143018, emissiveIntensity:0.4 });
 let n = 0;
 for (let x = -14; x <= 14; x += 4) {
   for (let z = -12; z <= 14; z += 4) {
@@ -95,9 +97,9 @@ function pin(p, mat, h) {
 }
 scarlet.forEach(p => pin(p, gold, 2.1));
 lockedStreets.forEach(p => pin(p, lockedMat, 0.8));
-town.forEach(p => pin(p, townMat, 1.4));
+town.forEach(p => pin(p, p[1] === "wood" ? woodMat : townMat, 1.6));
 count.textContent = n;
-let yaw = 0.6, drag = false, lx = 0, moved = false;
+let yaw = 0.6, drag = false, lx = 0, moved = false, picked = null;
 renderer.domElement.addEventListener("pointerdown", e => { drag = true; moved = false; lx = e.clientX; });
 addEventListener("pointerup", () => drag = false);
 addEventListener("pointermove", e => { if (drag) { const d = e.clientX - lx; if (Math.abs(d) > 3) moved = true; yaw += d * 0.005; lx = e.clientX; } });
@@ -108,15 +110,19 @@ renderer.domElement.addEventListener("click", e => {
   const hit = ray.intersectObjects(pins)[0];
   if (!hit) return;
   const p = hit.object.userData;
+  picked = p;
   name.textContent = p.name;
-  meta.textContent = p.kind === "door" ? "Scarlet · deployed" : p.kind === "locked" ? "locked" : "town";
+  meta.textContent = p.kind === "door" ? "Scarlet · deployed" : p.kind === "wood" ? "town wood · not for sale" : p.kind === "locked" ? "locked" : "town";
   line.textContent = p.line;
-  go.disabled = p.kind !== "door";
-  go.textContent = p.kind === "door" ? "Walk Scarlet" : (p.name === "The Gate" ? "Note only" : "Locked");
+  go.disabled = p.kind !== "door" && p.kind !== "wood";
+  go.textContent = p.kind === "door" ? "Walk Scarlet" : p.kind === "wood" ? "Walk the Greenwood" : (p.name === "The Gate" ? "Note only" : "Locked");
   sheet.classList.add("open");
 });
 close.onclick = () => sheet.classList.remove("open");
-go.onclick = () => { if (!go.disabled) location.href = "street.html"; };
+go.onclick = () => {
+  if (go.disabled || !picked) return;
+  location.href = picked.kind === "wood" ? "greenwood.html" : "street.html";
+};
 function loop() {
   camera.position.set(Math.sin(yaw)*26, 16, Math.cos(yaw)*26);
   camera.lookAt(0, 0, 8);
