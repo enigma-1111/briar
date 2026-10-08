@@ -35,6 +35,8 @@
   <button id="loft" style="display:none">Loft</button>
   <input id="good" maxlength="32" placeholder="one good">
   <button id="list" style="display:none">List for the day</button>
+  <input id="dname" maxlength="24" placeholder="paint a door name" style="display:none">
+  <button id="paint" style="display:none">Name the door</button>
   <button id="carry" style="display:none">Note the week</button>
   <button id="pass" style="display:none">Pass the key</button>
   <button id="hide">Close</button>
@@ -49,6 +51,7 @@ const ROOM = "briar.hearth.rooms.v1";
 const MKT = "briar.market.day.v1";
 const CARRY = "briar.scarlet.carry.v1";
 const HANDS = "briar.scarlet.hands.v1";
+const DOORS = "briar.scarlet.doors.v1";
 const CLOAK = "briar.cloak.v1";
 const CLOAKS = [
   { name: "russet", color: 0x8a3a2a },
@@ -471,6 +474,20 @@ function carryBook() {
   try { return JSON.parse(localStorage.getItem(CARRY) || "{}"); } catch (e) { return {}; }
 }
 function isKey(name) { return KEYS.indexOf(name) !== -1; }
+function doorBook() {
+  try { return JSON.parse(localStorage.getItem(DOORS) || "{}"); } catch (e) { return {}; }
+}
+function cleanName(raw) {
+  return (raw || "").replace(/[^A-Za-z0-9 '&-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24);
+}
+function painted(name) {
+  if (!isKey(name)) return "";
+  return doorBook()[name] || "";
+}
+function doorTitle(name) {
+  const paint = painted(name);
+  return paint ? paint : name;
+}
 function restCarry(name) {
   const book = carryBook();
   if (book[name]) { delete book[name]; localStorage.setItem(CARRY, JSON.stringify(book)); }
@@ -533,6 +550,24 @@ list.onclick = () => {
   cdoes.textContent = current.name + " lists " + good + " today. Saved on this browser.";
   good.value = "";
 };
+paint.addEventListener("click", () => {
+  if (!current || !isKey(current.name)) {
+    cdoes.textContent = "Town places keep the name the town gave them.";
+    return;
+  }
+  card.dataset.lock = "1";
+  const paint = cleanName(dname.value);
+  if (!paint) {
+    cdoes.textContent = "Write a door name. The key stays " + current.name + ".";
+    return;
+  }
+  const book = doorBook();
+  book[current.name] = paint;
+  localStorage.setItem(DOORS, JSON.stringify(book));
+  cname.textContent = paint;
+  cdoes.textContent = "Door painted " + paint + ". The key stays " + current.name + ". Saved on this browser.";
+  dname.value = "";
+});
 pass.addEventListener("click", () => {
   if (!current || !isKey(current.name)) return;
   card.dataset.lock = "1";
@@ -571,9 +606,12 @@ function loop() {
   });
   if (near && card.dataset.lock !== "1") {
     current = near;
-    cname.textContent = near.name;
+    cname.textContent = doorTitle(near.name);
     if (near.kind === "stall") near.line = stallLine(near.name);
-    cdoes.textContent = near.kind + ". " + near.line + carryLine(near.name) + stayLine(near.name);
+    const paint = painted(near.name);
+    cdoes.textContent = near.kind + ". " + (paint ? "Key stays " + near.name + ". " : "") + near.line + carryLine(near.name) + stayLine(near.name);
+    paint.style.display = isKey(near.name) ? "inline-block" : "none";
+    dname.style.display = isKey(near.name) ? "inline-block" : "none";
     carry.style.display = isKey(near.name) && !saved[near.name] ? "inline-block" : "none";
     if (isKey(near.name) && !saved[near.name]) carry.textContent = "Note the week · " + carryDue(near.name);
     pass.style.display = isKey(near.name) ? "inline-block" : "none";

@@ -17,7 +17,7 @@
 </head>
 <body>
 <div id="card"><b id="cname"></b><div class="muted" id="cmeta"></div><div id="cdoes"></div>
-  <button id="place">Place one block</button><button id="bed" style="display:none">Rent a bed</button><button id="settle" style="display:none">Settle</button><button id="loft" style="display:none">Loft</button><button id="carry" style="display:none">Note the week</button><button id="pass" style="display:none">Pass the key</button><button class="ghost" id="hide">Close</button></div>
+  <button id="place">Place one block</button><button id="bed" style="display:none">Rent a bed</button><button id="settle" style="display:none">Settle</button><button id="loft" style="display:none">Loft</button><input id="dname" maxlength="24" placeholder="paint a door name" style="display:none;width:160px;max-width:100%;background:#1a1612;color:#f4ead8;border:1px solid #e2c27a"><button id="paint" style="display:none">Name the door</button><button id="carry" style="display:none">Note the week</button><button id="pass" style="display:none">Pass the key</button><button class="ghost" id="hide">Close</button></div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
@@ -27,6 +27,7 @@ const KEYS = ["Hearth", "Loaf", "The Cup", "Quill", "Forge"];
 const BED = "briar.cup.bed.v1";
 const ROOM = "briar.hearth.rooms.v1";
 const HANDS = "briar.scarlet.hands.v1";
+const DOORS = "briar.scarlet.doors.v1";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const NEXT = ["the clerk", "a walker", "another walker"];
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
@@ -34,6 +35,20 @@ function carryBook() {
   try { return JSON.parse(localStorage.getItem(CARRY) || "{}"); } catch (e) { return {}; }
 }
 function isKey(name) { return KEYS.indexOf(name) !== -1; }
+function doorBook() {
+  try { return JSON.parse(localStorage.getItem(DOORS) || "{}"); } catch (e) { return {}; }
+}
+function cleanName(raw) {
+  return (raw || "").replace(/[^A-Za-z0-9 '&-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24);
+}
+function painted(name) {
+  if (!isKey(name)) return "";
+  return doorBook()[name] || "";
+}
+function doorTitle(name) {
+  return painted(name) || name;
+}
+
 function hands() {
   try { return JSON.parse(localStorage.getItem(HANDS) || "{}"); } catch (e) { return {}; }
 }
@@ -176,10 +191,14 @@ renderer.domElement.addEventListener("pointerdown", e => {
   const hit = ray.intersectObjects(meshes, true)[0];
   if (!hit) return;
   selected = hit.object.parent;
-  cname.textContent = selected.userData.name;
-  cmeta.textContent = selected.userData.kind + " parcel";
-  cdoes.textContent = selected.userData.does + carryLine(selected.userData.name) + stayLine(selected.userData.name);
-  carry.style.display = isKey(selected.userData.name) && !saved[selected.userData.name] ? "inline-block" : "none";
+  const keyName = selected.userData.name;
+  const paintName = painted(keyName);
+  cname.textContent = doorTitle(keyName);
+  cmeta.textContent = selected.userData.kind + " parcel" + (paintName ? " · key stays " + keyName : "");
+  cdoes.textContent = selected.userData.does + carryLine(keyName) + stayLine(keyName);
+  paint.style.display = isKey(keyName) ? "inline-block" : "none";
+  dname.style.display = isKey(keyName) ? "inline-block" : "none";
+  carry.style.display = isKey(keyName) && !saved[keyName] ? "inline-block" : "none";
   if (isKey(selected.userData.name) && !saved[selected.userData.name]) carry.textContent = "Note the week · " + carryDue(selected.userData.name);
   pass.style.display = isKey(selected.userData.name) ? "inline-block" : "none";
   if (isKey(selected.userData.name)) pass.textContent = "Pass the key · " + handWho(selected.userData.name);
@@ -249,7 +268,27 @@ place.onclick = () => {
   cdoes.textContent = "One block placed. Occupied. The carry rests. Saved on this browser.";
   place.textContent = "Block set";
 };
+paint.onclick = () => {
+  if (!selected || !isKey(selected.userData.name)) {
+    cdoes.textContent = "Town places keep the name the town gave them.";
+    return;
+  }
+  const keyName = selected.userData.name;
+  const paintName = cleanName(dname.value);
+  if (!paintName) {
+    cdoes.textContent = "Write a door name. The key stays " + keyName + ".";
+    return;
+  }
+  const book = doorBook();
+  book[keyName] = paintName;
+  localStorage.setItem(DOORS, JSON.stringify(book));
+  cname.textContent = paintName;
+  cmeta.textContent = selected.userData.kind + " parcel · key stays " + keyName;
+  cdoes.textContent = "Door painted " + paintName + ". The key stays " + keyName + ". Saved on this browser.";
+  dname.value = "";
+};
 pass.onclick = () => {
+
   if (!selected || !isKey(selected.userData.name)) return;
   const name = selected.userData.name;
   const book = hands();
