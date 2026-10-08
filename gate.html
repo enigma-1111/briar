@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Briar — the gate</title>
+<style>
+  body { margin: 0; background: #100e0c; color: #f4ead8; font: 17px/1.4 Georgia, serif; }
+  header, section { padding: 16px; }
+  h1 { margin: 0; letter-spacing: .16em; font-weight: normal; }
+  .card { border: 1px solid #4a3d28; border-radius: 14px; padding: 14px; margin: 10px 0; background: #17140f; }
+  .gold { border-color: #e2c27a; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 10px 14px; background: #e2c27a; color: #1a140c; }
+  .muted { color: #cbb892; }
+  a { color: #e2c27a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BRIAR</h1>
+  <p>The key to Norham. Not a heist.</p>
+  <p class="muted">Four steps. Nothing here moves real money.</p>
+</header>
+<section>
+  <article class="card gold"><b>1. Connect</b><p>Use the wallet that holds your key.</p><button id="connect">Connect</button><p class="muted" id="who">Not connected.</p></article>
+  <article class="card"><b>2. Claim the street</b><p>Scarlet is the only street cut. A key is a house, a shop, or an inn.</p></article>
+  <article class="card"><b>3. Stake a little Briar</b><p>Leave 20 Briar at the Gate. This wakes the key. You do not burn the house.</p><button id="stake">Stake 20</button></article>
+  <article class="card"><b>4. Join a job</b><p>The city takes a cut at the Gate. A job shares that cut. No one is promised a profit.</p>
+    <button data-job="Market day">Market day</button>
+    <button data-job="Gate watch">Gate watch</button>
+    <button data-job="Wood walk">Wood walk</button>
+    <p class="muted" id="job">No job yet.</p>
+  </article>
+  <p><a href="walk.html">Walk Scarlet</a></p>
+</section>
+<script>
+const state = JSON.parse(localStorage.getItem("briar.gate.v1") || "{}");
+function show() {
+  who.textContent = state.wallet ? "Wallet " + state.wallet : "Not connected.";
+  job.textContent = state.job ? state.job + (state.staked ? " · key awake" : " · stake first") : "No job yet.";
+}
+connect.onclick = () => { state.wallet = "0xB203…943C"; localStorage.setItem("briar.gate.v1", JSON.stringify(state)); show(); };
+stake.onclick = () => { if (!state.wallet) return who.textContent = "Connect first."; state.staked = true; localStorage.setItem("briar.gate.v1", JSON.stringify(state)); show(); };
+document.querySelectorAll("[data-job]").forEach(b => b.onclick = () => {
+  if (!state.staked) { job.textContent = "Stake first."; return; }
+  state.job = b.dataset.job;
+  localStorage.setItem("briar.gate.v1", JSON.stringify(state));
+  show();
+});
+show();
+</script>
+</body>
+</html>
