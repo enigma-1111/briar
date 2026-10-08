@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Norham street</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #07080c; overflow: hidden; touch-action: none; color: #f4ead8; font: 16px Georgia, serif; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 14px; top: 12px; text-shadow: 0 2px 6px #000; pointer-events: none; }
+  #card { position: fixed; left: 12px; right: 12px; bottom: 124px; display: none; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; background: #e2c27a; color: #1a140c; }
+  #stick { position: fixed; left: 16px; bottom: 16px; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); }
+  #knob { width: 42px; height: 42px; border-radius: 50%; background: #e2c27a; position: absolute; left: 31px; top: 31px; }
+</style>
+</head>
+<body>
+<div id="hud">NORHAM<br><span id="where">on the cobbles</span></div>
+<div id="card"><b id="cname"></b><p id="cdoes"></p><button id="hide">Close</button></div>
+<div id="stick"><div id="knob"></div></div>
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+const c = document.createElement("canvas");
+c.width = c.height = 128;
+const g = c.getContext("2d");
+g.fillStyle = "#2c261e";
+g.fillRect(0,0,128,128);
+for (let y=0;y<4;y++) for (let x=0;x<4;x++) {
+  g.fillStyle = `rgb(${50+(x*y)%30},${42+(x%3)*8},${34+(y%2)*6})`;
+  g.beginPath();
+  g.ellipse(x*32+16+(y%2)*8, y*32+16, 12, 9, 0, 0, 7);
+  g.fill();
+}
+const cobble = new THREE.CanvasTexture(c);
+cobble.wrapS = cobble.wrapT = THREE.RepeatWrapping;
+cobble.repeat.set(8, 16);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12161e);
+scene.fog = new THREE.Fog(0x12161e, 6, 28);
+const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 50);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.prepend(renderer.domElement);
+scene.add(new THREE.AmbientLight(0x667088, 0.35));
+const street = new THREE.Mesh(new THREE.PlaneGeometry(8, 28), new THREE.MeshStandardMaterial({ map: cobble, roughness: 0.9 }));
+street.rotation.x = -Math.PI/2;
+scene.add(street);
+const walls = [];
+function shop(x, z, name, line) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3, 3), new THREE.MeshStandardMaterial({ color:0x5c5146 }));
+  body.position.y = 1.5;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.1, 4), new THREE.MeshStandardMaterial({ color:0x1b140f }));
+  roof.position.y = 3.4;
+  roof.rotation.y = Math.PI/4;
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.9), new THREE.MeshBasicMaterial({ color:0xffc98a }));
+  win.position.set(0.6, 1.6, 1.52);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.08), new THREE.MeshStandardMaterial({ color:0x2a2118 }));
+  door.position.set(-0.5, 0.6, 1.52);
+  g.add(body, roof, win, door);
+  g.position.set(x, 0, z);
+  g.userData = { name, line, box: new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(x,1,z), new THREE.Vector3(3.2,3,3)) };
+  scene.add(g);
+  walls.push(g);
+  const lamp = new THREE.PointLight(0xffb15a, 2, 7);
+  lamp.position.set(x, 2.4, z+1.8);
+  scene.add(lamp);
+}
+shop(-2.6, -6, "The Inn", "Not a key. Come in.");
+shop(2.6, -2, "Sweep", "A shop. The box stays with the key.");
+shop(-2.6, 3, "Crooked Crow", "An inn. Rent a bed.");
+shop(2.6, 8, "Last Lamp", "The end of the cut street.");
+const player = { x:0, z:-10, yaw:0 };
+let joy={x:0,y:0}, look=false, lx=0;
+const stick=document.getElementById("stick"), knob=document.getElementById("knob");
+stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));
+stick.addEventListener("pointermove", e => {
+  if (!stick.hasPointerCapture(e.pointerId)) return;
+  const r=stick.getBoundingClientRect();
+  joy.x=Math.max(-1,Math.min(1,(e.clientX-r.left-52)/36));
+  joy.y=Math.max(-1,Math.min(1,(e.clientY-r.top-52)/36));
+  knob.style.left=31+joy.x*26+"px"; knob.style.top=31+joy.y*26+"px";
+});
+stick.addEventListener("pointerup", () => { joy={x:0,y:0}; knob.style.left="31px"; knob.style.top="31px"; });
+renderer.domElement.addEventListener("pointerdown", e => { look=true; lx=e.clientX; });
+addEventListener("pointerup", () => look=false);
+addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX-lx)*0.006; lx=e.clientX; } });
+hide.onclick = () => card.style.display = "none";
+function loop() {
+  const nx = player.x + Math.sin(player.yaw)*-joy.y*0.07 + Math.cos(player.yaw)*joy.x*0.07;
+  const nz = player.z + Math.cos(player.yaw)*-joy.y*0.07 - Math.sin(player.yaw)*joy.x*0.07;
+  const hit = walls.find(w => Math.abs(nx-w.position.x)<1.5 && Math.abs(nz-w.position.z)<1.5);
+  if (!hit && Math.abs(nx)<3.2) { player.x = nx; player.z = nz; }
+  const near = walls.find(w => Math.hypot(w.position.x-player.x, w.position.z-player.z)<2.3);
+  if (near) { cname.textContent = near.userData.name; cdoes.textContent = near.userData.line; card.style.display = "block"; where.textContent = near.userData.name; }
+  camera.position.set(player.x, 1.6, player.z);
+  camera.lookAt(player.x+Math.sin(player.yaw), 1.45, player.z+Math.cos(player.yaw));
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+addEventListener("resize", () => { camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+</script>
+</body>
+</html>
