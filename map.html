@@ -11,12 +11,13 @@
   #sheet { position: fixed; left: 0; right: 0; bottom: 0; background: #14120ef5; border-top: 1px solid #e2c27a; padding: 16px 16px 28px; transform: translateY(110%); transition: .2s; }
   #sheet.open { transform: none; }
   button { font: inherit; border: 0; border-radius: 10px; padding: 12px; width: 100%; margin-top: 8px; background: #e2c27a; color: #1a140c; }
+  button:disabled { background: #2a313c; color: #8a8478; }
   .ghost { background: transparent; color: #e2c27a; border: 1px solid #e2c27a; }
   .muted { color: #cbb892; }
 </style>
 </head>
 <body>
-<div id="top">NORHAM · <b id="count">0</b> roofs<div class="muted">Drag to turn. Tap a gold roof.</div></div>
+<div id="top">NORHAM · <b id="count">0</b> deployed<div class="muted">Scarlet doors are gold. Marian, John, Much stay locked.</div></div>
 <div id="sheet">
   <b id="name"></b>
   <div class="muted" id="meta"></div>
@@ -26,22 +27,22 @@
 </div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-const named = [
-  ["The Gate","toll",0,0,"Swaps. The city keeps a tenth."],
-  ["Market","stalls",6,-4,"Day stalls. Not a parcel."],
-  ["The Inn","public",-6,-2,"A hearth. Not a key."],
-  ["Chapel","town",-10,4,"Not for sale."],
-  ["Greenwood","wood",-8,12,"Oaks. Not a key."],
-  ["Hearth","house",4,4,"Two rooms. 50 Briar."],
-  ["Loaf","shop",8,2,"Floor and a back room."],
-  ["The Cup","inn",6,8,"Four beds."],
-  ["Quill","shop",10,6,"List an NFT."],
-  ["Forge","workshop",-4,8,"Work floor. No shop."],
-  ["Marian","locked",16,-6,"Drawn. Not cut."],
-  ["John","locked",16,4,"Drawn. Not cut."],
-  ["Much","locked",16,12,"Drawn. Not cut."],
-  ["Well","town",-2,-8,"Water. Not a key."],
-  ["School","town",-12,-4,"Not for sale."]
+const scarlet = [
+  ["Hearth","door",-2,-8,"Scarlet. Two rooms. Open."],
+  ["Loaf","door",2,-4,"Scarlet. Floor and a back room."],
+  ["The Cup","door",-2,0,"Scarlet. Four beds. A week rent."],
+  ["Quill","door",2,4,"Scarlet. A counter."],
+  ["Forge","door",-2,8,"Scarlet. Work floor."],
+  ["Last Door","door",2,12,"Scarlet. End of the street."]
+];
+const lockedStreets = [
+  ["Marian","locked",10,-6,"Drawn. Not cut."],
+  ["John","locked",10,4,"Drawn. Not cut."],
+  ["Much","locked",10,12,"Drawn. Not cut."]
+];
+const town = [
+  ["The Gate","town",0,-14,"Swaps. Not a Scarlet door."],
+  ["Well","town",0,14,"Water. Not a key."]
 ];
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x120c1c);
@@ -58,60 +59,67 @@ scene.add(moon);
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color:0x181222 }));
 ground.rotation.x = -Math.PI/2;
 scene.add(ground);
-for (let i = -18; i <= 18; i += 4) {
-  const a = new THREE.Mesh(new THREE.BoxGeometry(40, 0.04, 0.35), new THREE.MeshStandardMaterial({ color:0x2c2636 }));
-  a.position.set(0, 0.02, i);
-  const b = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, 40), new THREE.MeshStandardMaterial({ color:0x2c2636 }));
-  b.position.set(i, 0.02, 0);
-  scene.add(a, b);
+const road = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 28), new THREE.MeshStandardMaterial({ color:0x3a332b }));
+road.position.set(0, 0.03, 2);
+scene.add(road);
+for (const x of [10]) {
+  const lane = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.04, 24), new THREE.MeshStandardMaterial({ color:0x241e28 }));
+  lane.position.set(x, 0.02, 2);
+  scene.add(lane);
 }
 const pins = [];
 const stone = new THREE.MeshStandardMaterial({ color:0x4a4038 });
 const lockedMat = new THREE.MeshStandardMaterial({ color:0x2a313c });
-const gold = new THREE.MeshStandardMaterial({ color:0xc9a24a, emissive:0x3a2a10 });
+const gold = new THREE.MeshStandardMaterial({ color:0xe2c27a, emissive:0x5a4010, emissiveIntensity:0.35 });
+const townMat = new THREE.MeshStandardMaterial({ color:0x6a6258 });
 let n = 0;
-for (let x = -16; x <= 16; x += 2) {
-  for (let z = -16; z <= 16; z += 2) {
-    if (Math.abs(x) % 4 === 0 || Math.abs(z) % 4 === 0) continue;
-    const h = 0.6 + ((x * 7 + z * 3) & 3) * 0.35;
-    const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, h, 1.1), x > 12 ? lockedMat : stone);
+for (let x = -14; x <= 14; x += 4) {
+  for (let z = -12; z <= 14; z += 4) {
+    if (Math.abs(x) < 3) continue;
+    const locked = x >= 8;
+    const h = locked ? 0.45 : 0.7;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.4, h, 1.4), locked ? lockedMat : stone);
     b.position.set(x, h/2, z);
     scene.add(b);
-    n++;
   }
 }
-named.forEach(p => {
-  const h = p[1] === "locked" ? 1 : 2.2;
-  const b = new THREE.Mesh(new THREE.BoxGeometry(1.6, h, 1.6), p[1] === "locked" ? lockedMat : gold);
+function pin(p, mat, h) {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1.5, h, 1.5), mat);
   b.position.set(p[2], h/2, p[3]);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.7, 0.08), p[1] === "door" ? gold : lockedMat);
+  door.position.set(p[2], 0.4, p[3] + 0.78);
   b.userData = { name:p[0], kind:p[1], line:p[4] };
-  scene.add(b);
+  scene.add(b, door);
   pins.push(b);
-  n++;
-});
+  if (p[1] === "door") n++;
+}
+scarlet.forEach(p => pin(p, gold, 2.1));
+lockedStreets.forEach(p => pin(p, lockedMat, 0.8));
+town.forEach(p => pin(p, townMat, 1.4));
 count.textContent = n;
-let yaw = 0.5, drag = false, lx = 0;
-renderer.domElement.addEventListener("pointerdown", e => { drag = true; lx = e.clientX; });
+let yaw = 0.6, drag = false, lx = 0, moved = false;
+renderer.domElement.addEventListener("pointerdown", e => { drag = true; moved = false; lx = e.clientX; });
 addEventListener("pointerup", () => drag = false);
-addEventListener("pointermove", e => { if (drag) { yaw += (e.clientX - lx) * 0.005; lx = e.clientX; } });
+addEventListener("pointermove", e => { if (drag) { const d = e.clientX - lx; if (Math.abs(d) > 3) moved = true; yaw += d * 0.005; lx = e.clientX; } });
 const ray = new THREE.Raycaster();
 renderer.domElement.addEventListener("click", e => {
+  if (moved) return;
   ray.setFromCamera(new THREE.Vector2((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1), camera);
   const hit = ray.intersectObjects(pins)[0];
   if (!hit) return;
   const p = hit.object.userData;
   name.textContent = p.name;
-  meta.textContent = p.kind;
+  meta.textContent = p.kind === "door" ? "Scarlet · deployed" : p.kind === "locked" ? "locked" : "town";
   line.textContent = p.line;
-  go.disabled = p.kind === "locked";
-  go.textContent = p.kind === "locked" ? "Locked" : "Enter";
+  go.disabled = p.kind !== "door";
+  go.textContent = p.kind === "door" ? "Walk Scarlet" : "Locked";
   sheet.classList.add("open");
 });
 close.onclick = () => sheet.classList.remove("open");
-go.onclick = () => { if (!go.disabled) line.textContent = "You stepped in. No coin moved."; };
+go.onclick = () => { if (!go.disabled) location.href = "street.html"; };
 function loop() {
-  camera.position.set(Math.sin(yaw)*28, 20, Math.cos(yaw)*28);
-  camera.lookAt(0, 0, 0);
+  camera.position.set(Math.sin(yaw)*26, 16, Math.cos(yaw)*26);
+  camera.lookAt(0, 0, 2);
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
