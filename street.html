@@ -8,6 +8,9 @@
   html, body { margin: 0; height: 100%; background: #07080c; overflow: hidden; touch-action: none; color: #f4ead8; font: 16px Georgia, serif; }
   canvas { display: block; }
   #hud { position: fixed; left: 14px; top: 12px; text-shadow: 0 2px 6px #000; pointer-events: none; }
+  #cloak { position: fixed; right: 12px; top: 12px; z-index: 5; display: flex; gap: 6px; align-items: center; }
+  #cloak span { font-size: 13px; letter-spacing: .06em; text-shadow: 0 2px 6px #000; }
+  #cloak button { width: 22px; height: 22px; padding: 0; margin: 0; border-radius: 50%; border: 2px solid #1a140c; }
   #card { position: fixed; left: 12px; right: 12px; bottom: calc(132px + env(safe-area-inset-bottom)); z-index: 6; display: none; max-height: calc(100dvh - 168px - env(safe-area-inset-bottom)); overflow-y: auto; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px 14px; }
   #card p { margin: 6px 0 10px; color: #e8dcc4; }
   button, #good { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 0 8px 8px 0; background: #e2c27a; color: #1a140c; }
@@ -22,6 +25,7 @@
 </head>
 <body>
 <div id="hud">SCARLET<br><span id="where">on the cobbles</span></div>
+<div id="cloak"><span id="cloakname">wool</span></div>
 <div id="card">
   <b id="cname"></b>
   <p id="cdoes"></p>
@@ -45,6 +49,18 @@ const ROOM = "briar.hearth.rooms.v1";
 const MKT = "briar.market.day.v1";
 const CARRY = "briar.scarlet.carry.v1";
 const HANDS = "briar.scarlet.hands.v1";
+const CLOAK = "briar.cloak.v1";
+const CLOAKS = [
+  { name: "russet", color: 0x8a3a2a },
+  { name: "moss", color: 0x3d5340 },
+  { name: "ink", color: 0x1c2436 },
+  { name: "wool", color: 0xcbb892 },
+  { name: "wine", color: 0x6a2430 }
+];
+function cloakPick() {
+  const n = localStorage.getItem(CLOAK);
+  return CLOAKS.find(c => c.name === n) || CLOAKS[3];
+}
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const NEXT = ["the clerk", "a walker", "another walker"];
 const KEYS = ["Hearth", "Loaf", "The Cup", "Quill", "Forge"];
@@ -377,6 +393,32 @@ const endMat = new THREE.MeshStandardMaterial({ color: 0x2c261e });
 });
 
 const player = { x: 0, z: -11.2, yaw: Math.PI };
+const cloakMat = new THREE.MeshStandardMaterial({ color: cloakPick().color, roughness: 0.82 });
+const walker = new THREE.Group();
+const cloak = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.15, 7), cloakMat);
+cloak.position.y = 0.78;
+const hood = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), cloakMat);
+hood.position.y = 1.42;
+const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, 0.08, 7), cloakMat);
+hem.position.y = 0.22;
+walker.add(cloak, hood, hem);
+scene.add(walker);
+const cloakBar = document.getElementById("cloak");
+const cloakName = document.getElementById("cloakname");
+function paintCloak(pick) {
+  cloakMat.color.setHex(pick.color);
+  cloakName.textContent = pick.name;
+  localStorage.setItem(CLOAK, pick.name);
+}
+paintCloak(cloakPick());
+CLOAKS.forEach(c => {
+  const b = document.createElement("button");
+  b.style.background = "#" + c.color.toString(16).padStart(6, "0");
+  b.setAttribute("aria-label", c.name);
+  b.addEventListener("pointerdown", e => e.stopPropagation());
+  b.addEventListener("click", () => paintCloak(c));
+  cloakBar.appendChild(b);
+});
 const R = 0.38;
 let joy = { x: 0, y: 0 }, look = false, lx = 0, current = null;
 const stick = document.getElementById("stick"), knob = document.getElementById("knob");
@@ -568,8 +610,10 @@ function loop() {
     const glow = d.group.children[4];
     if (glow) glow.intensity = 1.05 + Math.sin(now * 0.004 + d.z) * 0.22;
   });
-  camera.position.set(player.x, 1.6, player.z);
-  camera.lookAt(player.x + fx, 1.45, player.z + fz);
+  walker.position.set(player.x, 0, player.z);
+  walker.rotation.y = player.yaw;
+  camera.position.set(player.x - fx * 1.35, 1.85, player.z - fz * 1.35);
+  camera.lookAt(player.x + fx * 0.6, 1.15, player.z + fz * 0.6);
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
