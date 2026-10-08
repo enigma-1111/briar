@@ -37,12 +37,12 @@ function bedDays(b) {
 }
 const parcels = [
   ["The Inn","town",-4,0,0x6d5a40,"Public. Not a parcel you can buy."],
-  ["Hearth","house",0,0,0x7a6248,"2 rooms. Open."],
+  ["Hearth","house",-4,0,0x7a6248,"2 rooms. Open. First out from the Gate."],
   ["Loaf","shop",4,0,0x665444,"Floor and back room."],
   ["The Cup","inn",8,0,0x5e5144,"4 beds. A week rent. The box stays with the key."],
   ["Chapel","town",-4,5,0x3e443c,"Not for sale."],
   ["Market","town",2,5,0x5c5346,"Stalls. Not a key."],
-  ["Gate","toll",6,5,0xc9a24a,"City keeps a tenth."]
+  ["Gate","toll",0,0,0xc9a24a,"A note, not a swap. The city keeps a tenth. No coin moves."]
 ];
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a2430);
@@ -81,7 +81,7 @@ const meshes = parcels.map(p => {
   scene.add(g);
   return g;
 });
-const player = { x: 2, z: -4, yaw: 0 };
+const player = { x: 0, z: -5, yaw: 0 };
 let joy = { x:0, y:0 }, look = false, lx = 0, selected = null;
 const stick = document.getElementById("stick"), knob = document.getElementById("knob");
 stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));

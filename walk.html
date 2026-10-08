@@ -27,7 +27,7 @@ const save = JSON.parse(localStorage.getItem("briar.walkcity.v1") || "{}");
 const places = [
   ["The Inn","town",-8,-6,0x6d5a40,"Public hearth. Not a key."],
   ["Market","town",0,-8,0x5c5346,"Day stalls. Not a parcel."],
-  ["Gate","town",0,10,0x4a4036,"Swap Briar. City keeps a tenth."],
+  ["Gate","town",0,0,0xc9a24a,"A note, not a swap. The city keeps a tenth. No coin moves."],
   ["Chapel","town",-10,2,0x3d4038,"One room. Not for sale."],
   ["Greenwood","town",-12,8,0x243024,"Oaks. Not a key."],
   ["Hearth","house",6,-6,0x7a6248,"Two rooms. 50 Briar."],
@@ -72,7 +72,7 @@ const meshes = places.map(p => {
   scene.add(g);
   return g;
 });
-const player = { x:0, z:0, yaw:0 };
+const player = { x:0, z:-5, yaw:0 };
 let joy={x:0,y:0}, look=false, lx=0, selected=null, inside=false;
 const stick=document.getElementById("stick"), knob=document.getElementById("knob");
 stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));

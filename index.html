@@ -14,12 +14,13 @@
   a { color: #e2c27a; }
   .muted { color: #cbb892; }
   .map { margin: 8px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .block { border: 1px solid #4a3d28; border-radius: 12px; padding: 12px; background: #1a1612; text-align: left; }
+  .block { border: 1px solid #4a3d28; border-radius: 12px; padding: 12px; background: #1a1612; }
+  .live { border-color: #e2c27a; }
   .town { background: #1c2218; }
-  .row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 16px 16px; }
-  .card { min-width: 168px; background: #1a1612; border: 1px solid #4a3d28; border-radius: 14px; padding: 14px; }
-  button { font: inherit; color: inherit; }
-  .card button, #act { border: 0; border-radius: 999px; padding: 8px 12px; margin-top: 8px; background: #e2c27a; color: #1a140c; }
+  .row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 16px 16px; scroll-snap-type: x mandatory; }
+  .card { scroll-snap-align: start; min-width: 168px; background: #1a1612; border: 1px solid #4a3d28; border-radius: 14px; padding: 14px; }
+  button, .block { font: inherit; color: inherit; }
+  button { border: 0; border-radius: 999px; padding: 8px 12px; margin-top: 8px; background: #e2c27a; color: #1a140c; }
   .sheet { position: fixed; inset: auto 0 0 0; background: #14120e; border-top: 1px solid #4a3d28; padding: 18px 18px 28px; transform: translateY(110%); transition: .2s; }
   .sheet.open { transform: none; }
   .line { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid #2c261c; }
@@ -30,47 +31,50 @@
 <body>
 <header>
   <h1>BRIAR</h1>
-  <p>Norham. First city. Parcels cut from the center.</p>
-  <p class="muted">Nothing is sold. No coin mint. <a href="grid.html">Parcel grid</a> · <a href="rules.html">Rules</a></p>
+  <p>Norham. First city. Scarlet is the only street cut.</p>
+  <p class="muted">Nothing is sold yet. <a href="rules.html">Rules</a></p>
 </header>
 <div class="map" id="map"></div>
-<h2>FIRST FIVE · FROM THE CENTER</h2>
+<h2>SCARLET</h2>
 <div class="row" id="scarlet"></div>
 <div class="sheet" id="sheet">
   <b id="name"></b>
   <div class="muted" id="kind"></div>
   <div class="line"><span class="k">Inside</span><span id="rooms"></span></div>
-  <div class="line"><span class="k">Status</span><span id="price"></span></div>
+  <div class="line"><span class="k">Price</span><span id="price"></span></div>
   <button id="act">Open</button>
   <button class="ghost" id="close">Close</button>
   <p class="muted" id="note"></p>
 </div>
 <script>
 const places = [
-  ["Greenwood","wood","oaks","unsold","town"],
-  ["Chapel","chapel","one room","unsold","town"],
-  ["Gate","toll","the gate","unsold","town"],
-  ["Market","stalls","a day stall","unsold","town"],
-  ["Inn","public room","one hearth","unsold","town"],
-  ["Hearth","house","2 rooms","1 · center","key"],
-  ["Loaf","shop","floor, back room","2","key"],
-  ["The Cup","inn","4 beds","3","key"],
-  ["Quill","shop","counter","4","key"],
-  ["Forge","workshop","work floor","5","key"],
+  ["Greenwood","wood","oaks","not for sale","town"],
+  ["Chapel","chapel","one room","not for sale","town"],
+  ["Gate","center","A note, not a swap. The city keeps a tenth. No coin moves.","city keeps a tenth","town"],
+  ["Market","stalls","a day stall","not a key","town"],
+  ["Inn","public room","one hearth","not a key","town"],
+  ["Hearth","house","2 rooms","50 Briar","key"],
+  ["Loaf","shop","floor, back room","70 Briar","key"],
+  ["The Cup","inn","4 beds","160 Briar","key"],
+  ["Quill","shop","counter","80 Briar","key"],
+  ["Forge","workshop","work floor","140 Briar","key"],
+  ["Last Door","inn","5 beds","200 Briar","key"],
   ["Marian","street","18 houses","not cut","later"],
   ["John","street","18 houses","not cut","later"],
   ["Much","mill street","16 houses","not cut","later"]
 ];
+const map = document.getElementById("map");
+const row = document.getElementById("scarlet");
 places.forEach(p => {
   if (p[4] === "key") {
     const d = document.createElement("article");
     d.className = "card";
-    d.innerHTML = "<b>"+p[0]+"</b><div class='muted'>"+p[3]+" · "+p[1]+"</div><button>Open</button>";
+    d.innerHTML = "<b>"+p[0]+"</b><div class='muted'>"+p[1]+"</div><button>Open</button>";
     d.querySelector("button").onclick = () => openPlace(p);
-    scarlet.appendChild(d);
-  } else if (p[4] === "town") {
+    row.appendChild(d);
+  } else {
     const b = document.createElement("button");
-    b.className = "block town";
+    b.className = "block " + (p[4] === "town" ? "town" : "");
     b.innerHTML = "<b>"+p[0]+"</b><div class='muted'>"+p[3]+"</div>";
     b.onclick = () => openPlace(p);
     map.appendChild(b);
@@ -81,11 +85,11 @@ function openPlace(p) {
   kind.textContent = p[1];
   rooms.textContent = p[2];
   price.textContent = p[3];
-  note.textContent = p[4] === "key" ? "Named parcel. Not minted." : "Town place. Stays unsold.";
+  note.textContent = p[0] === "Gate" ? "Note only. No swap." : (p[4] === "key" ? "A Briar key later. Nothing is sold yet." : "Not a key.");
   act.disabled = false;
   sheet.classList.add("open");
 }
-act.onclick = () => { note.textContent = "No coin. Nothing sold."; act.disabled = true; };
+act.onclick = () => { note.textContent = "Not open for money yet."; act.disabled = true; };
 close.onclick = () => sheet.classList.remove("open");
 </script>
 </body>

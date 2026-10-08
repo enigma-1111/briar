@@ -14,7 +14,7 @@
 </style>
 </head>
 <body>
-<div id="lesson" style="position:fixed;left:12px;top:12px;right:12px;background:#fff;border-radius:10px;padding:8px 10px">Voxels rented parcels for events. Briar rents a bed at The Cup for a week. The box stays with the key.</div>
+<div id="lesson" style="position:fixed;left:12px;top:12px;right:12px;background:#fff;border-radius:10px;padding:8px 10px">Voxels cut parcels from the center. The Gate is the center of Norham. A note says the city keeps a tenth. No real swap.</div>
 <div id="card"><b id="cname"></b><div id="cmeta"></div><div id="cdoes"></div>
   <button id="enter">Enter</button><button id="build">Place block</button><button id="hide">Close</button></div>
 <div id="stick"><div id="knob"></div></div>
@@ -46,11 +46,16 @@ for (let gx = -2; gx <= 2; gx++) for (let gz = -1; gz <= 1; gz++) {
     plot.add(cube);
   }
   plot.position.set(gx*4.2, 0, gz*4.2);
-  plot.userData = { name: gx===0&&gz===0?"The Gate":"Parcel "+(gx+3)+"-"+(gz+2), owner: gx===0?"Norham":"open", kind: gz===1?"town":"house" };
+  plot.userData = { name: gx===0&&gz===0?"The Gate":"Parcel "+(gx+3)+"-"+(gz+2), owner: gx===0&&gz===0?"Norham":"open", kind: gx===0&&gz===0?"town":"house" };
+  if (gx===0 && gz===0) {
+    const arch = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.4, 0.4), new THREE.MeshLambertMaterial({ color:0xc9a24a }));
+    arch.position.y = 2.6;
+    plot.add(arch);
+  }
   scene.add(plot);
   parcels.push(plot);
 }
-const player = { x:0, z:-6, yaw:0 };
+const player = { x:0, z:-6, yaw:0 }; // facing the Gate
 let joy={x:0,y:0}, look=false, lx=0, selected=null;
 const stick=document.getElementById("stick"), knob=document.getElementById("knob");
 stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));

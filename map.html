@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-<div id="top">NORHAM · <b id="count">0</b> deployed<div class="muted">Scarlet doors are gold. Marian, John, Much stay locked.</div></div>
+<div id="top">NORHAM · <b id="count">0</b> deployed<div class="muted">The Gate is the center. Scarlet doors are gold. Marian, John, Much stay locked.</div></div>
 <div id="sheet">
   <b id="name"></b>
   <div class="muted" id="meta"></div>
@@ -28,21 +28,21 @@
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 const scarlet = [
-  ["Hearth","door",-2,-8,"Scarlet. Two rooms. Open."],
-  ["Loaf","door",2,-4,"Scarlet. Floor and a back room."],
-  ["The Cup","door",-2,0,"Scarlet. Four beds. A week rent."],
-  ["Quill","door",2,4,"Scarlet. A counter."],
-  ["Forge","door",-2,8,"Scarlet. Work floor."],
-  ["Last Door","door",2,12,"Scarlet. End of the street."]
+  ["Hearth","door",-2,6,"Scarlet. Two rooms. Open. First out from the Gate."],
+  ["Loaf","door",2,10,"Scarlet. Floor and a back room."],
+  ["The Cup","door",-2,14,"Scarlet. Four beds. A week rent."],
+  ["Quill","door",2,18,"Scarlet. A counter."],
+  ["Forge","door",-2,22,"Scarlet. Work floor."],
+  ["Last Door","door",2,26,"Scarlet. End of the street."]
 ];
 const lockedStreets = [
-  ["Marian","locked",10,-6,"Drawn. Not cut."],
-  ["John","locked",10,4,"Drawn. Not cut."],
-  ["Much","locked",10,12,"Drawn. Not cut."]
+  ["Marian","locked",10,8,"Drawn. Not cut."],
+  ["John","locked",10,18,"Drawn. Not cut."],
+  ["Much","locked",10,26,"Drawn. Not cut."]
 ];
 const town = [
-  ["The Gate","town",0,-14,"Swaps. Not a Scarlet door."],
-  ["Well","town",0,14,"Water. Not a key."]
+  ["The Gate","town",0,0,"A note, not a swap. The city keeps a tenth. No coin moves."],
+  ["Well","town",0,28,"Water. Not a key."]
 ];
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x120c1c);
@@ -59,12 +59,12 @@ scene.add(moon);
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color:0x181222 }));
 ground.rotation.x = -Math.PI/2;
 scene.add(ground);
-const road = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 28), new THREE.MeshStandardMaterial({ color:0x3a332b }));
-road.position.set(0, 0.03, 2);
+const road = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 32), new THREE.MeshStandardMaterial({ color:0x3a332b }));
+road.position.set(0, 0.03, 14);
 scene.add(road);
 for (const x of [10]) {
   const lane = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.04, 24), new THREE.MeshStandardMaterial({ color:0x241e28 }));
-  lane.position.set(x, 0.02, 2);
+  lane.position.set(x, 0.02, 16);
   scene.add(lane);
 }
 const pins = [];
@@ -112,14 +112,14 @@ renderer.domElement.addEventListener("click", e => {
   meta.textContent = p.kind === "door" ? "Scarlet · deployed" : p.kind === "locked" ? "locked" : "town";
   line.textContent = p.line;
   go.disabled = p.kind !== "door";
-  go.textContent = p.kind === "door" ? "Walk Scarlet" : "Locked";
+  go.textContent = p.kind === "door" ? "Walk Scarlet" : (p.name === "The Gate" ? "Note only" : "Locked");
   sheet.classList.add("open");
 });
 close.onclick = () => sheet.classList.remove("open");
 go.onclick = () => { if (!go.disabled) location.href = "street.html"; };
 function loop() {
   camera.position.set(Math.sin(yaw)*26, 16, Math.cos(yaw)*26);
-  camera.lookAt(0, 0, 2);
+  camera.lookAt(0, 0, 8);
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }

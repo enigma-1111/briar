@@ -19,10 +19,11 @@
 <header>
   <h1>BRIAR</h1>
   <p>The key to Norham. Not a heist.</p>
-  <p class="muted">Four steps. Nothing here moves real money.</p>
+  <p class="muted">Four steps. Nothing here moves real money. The Gate is the center of Norham.</p>
 </header>
 <section>
-  <article class="card gold"><b>1. Connect</b><p>Use the wallet that holds your key.</p><button id="connect">Connect</button><p class="muted" id="who">Not connected.</p></article>
+  <article class="card gold"><b>Swap note</b><p>A note, not a swap. The city keeps a tenth. No coin moves.</p><p class="muted">Voxels cut from the center. Norham cuts from the Gate. This button does not swap.</p><button id="note" type="button">Read the note</button><p class="muted" id="noted">Not read.</p></article>
+  <article class="card"><b>1. Connect</b><p>Use the wallet that holds your key.</p><button id="connect">Connect</button><p class="muted" id="who">Not connected.</p></article>
   <article class="card"><b>2. Claim the street</b><p>Scarlet is the only street cut. A key is a house, a shop, or an inn.</p></article>
   <article class="card"><b>3. Stake a little Briar</b><p>Leave 20 Briar at the Gate. This wakes the key. You do not burn the house.</p><button id="stake">Stake 20</button></article>
   <article class="card"><b>4. Join a job</b><p>The city takes a cut at the Gate. A job shares that cut. No one is promised a profit.</p>
@@ -48,6 +49,7 @@ document.querySelectorAll("[data-job]").forEach(b => b.onclick = () => {
   show();
 });
 show();
+note.onclick = () => { noted.textContent = "Read. City keeps a tenth. No swap."; };
 </script>
 </body>
 </html>
