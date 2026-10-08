@@ -10,7 +10,7 @@
   #hud { position: fixed; left: 14px; top: 12px; text-shadow: 0 2px 6px #000; pointer-events: none; }
   #card { position: fixed; left: 12px; right: 12px; bottom: 124px; display: none; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px 14px; }
   #card p { margin: 6px 0 10px; color: #e8dcc4; }
-  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; background: #e2c27a; color: #1a140c; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin-right: 8px; background: #e2c27a; color: #1a140c; }
   #stick { position: fixed; left: 16px; bottom: 16px; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); touch-action: none; }
   #knob { width: 42px; height: 42px; border-radius: 50%; background: #e2c27a; position: absolute; left: 31px; top: 31px; }
 </style>
@@ -20,11 +20,16 @@
 <div id="card">
   <b id="cname"></b>
   <p id="cdoes"></p>
+  <button id="place">Place one block</button>
   <button id="hide">Close</button>
 </div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+
+const KEY = "briar.scarlet.blocks.v1";
+const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+const gold = new THREE.MeshStandardMaterial({ color: 0xe2c27a, roughness: 0.45 });
 
 const cob = document.createElement("canvas");
 cob.width = cob.height = 256;
@@ -75,8 +80,15 @@ scene.add(verge);
 
 const solids = [];
 const doors = [];
-function addSolid(x, z, w, d, h) {
+function addSolid(x, z, w, d) {
   solids.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
+}
+function putBlock(group) {
+  if (group.getObjectByName("walker-block")) return;
+  const cube = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), gold);
+  cube.name = "walker-block";
+  cube.position.set(0.95, 3.2, 1.15);
+  group.add(cube);
 }
 function house(x, z, face, name, kind, line) {
   const g = new THREE.Group();
@@ -97,22 +109,31 @@ function house(x, z, face, name, kind, line) {
   g.position.set(x, 0, z);
   if (x > 0) g.rotation.y = Math.PI;
   scene.add(g);
-  addSolid(x, z, 3.4, 3.2, 2.8);
+  addSolid(x, z, 3.4, 3.2);
   const lamp = new THREE.PointLight(0xffb15a, 1.6, 8);
   const doorZ = x > 0 ? z - 1.85 : z + 1.85;
   lamp.position.set(x, 2.3, doorZ);
   scene.add(lamp);
-  doors.push({ x, z: doorZ, name, kind, line });
+  if (saved[name]) putBlock(g);
+  doors.push({ x, z: doorZ, name, kind, line, group: g });
 }
-house(-3.4, -8, 0xc4b49a, "Hearth", "house", "Two rooms. A Briar key later. Nothing is sold yet.");
-house(3.4, -4, 0x8a5a48, "Loaf", "shop", "Floor and a back room. The box stays with the key.");
-house(-3.4, 0, 0x6e5344, "The Cup", "inn", "Four beds. Rent a night. Not open for money yet.");
-house(3.4, 4, 0xb7a48c, "Quill", "shop", "A counter. Come to the door.");
-house(-3.4, 8, 0x4e4036, "Forge", "workshop", "Work floor. The key is not cut.");
-house(3.4, 12, 0x7a4038, "Last Door", "inn", "Five beds. The end of Scarlet.");
+house(-3.4, -8, 0xc4b49a, "Hearth", "house", "Two rooms. Open. One block, saved on this browser.");
+house(3.4, -4, 0x8a5a48, "Loaf", "shop", "Floor and a back room. Open. One block.");
+house(-3.4, 0, 0x6e5344, "The Cup", "inn", "Four beds. Open. One block.");
+house(3.4, 4, 0xb7a48c, "Quill", "shop", "A counter. Open. One block.");
+house(-3.4, 8, 0x4e4036, "Forge", "workshop", "Work floor. Open. One block.");
+house(3.4, 12, 0x7a4038, "Last Door", "inn", "Five beds. Open. The end of Scarlet.");
 
-addSolid(0, -16.2, 8, 0.6, 2);
-addSolid(0, 16.2, 8, 0.6, 2);
+const well = new THREE.Group();
+const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.82, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x6a7268 }));
+rim.position.y = 0.35;
+well.add(rim);
+well.position.set(0, 0, 14.4);
+scene.add(well);
+doors.push({ x: 0, z: 13.3, name: "Well", kind: "town", line: "Town water. Not a house. The block is refused.", group: well });
+
+addSolid(0, -16.2, 8, 0.6);
+addSolid(0, 16.2, 8, 0.6);
 const endMat = new THREE.MeshStandardMaterial({ color: 0x2c261e });
 [[-16.2], [16.2]].forEach(([z]) => {
   const wall = new THREE.Mesh(new THREE.BoxGeometry(8, 1.6, 0.4), endMat);
@@ -122,7 +143,7 @@ const endMat = new THREE.MeshStandardMaterial({ color: 0x2c261e });
 
 const player = { x: 0, z: -12, yaw: 0 };
 const R = 0.38;
-let joy = { x: 0, y: 0 }, look = false, lx = 0;
+let joy = { x: 0, y: 0 }, look = false, lx = 0, current = null;
 const stick = document.getElementById("stick"), knob = document.getElementById("knob");
 stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));
 stick.addEventListener("pointermove", e => {
@@ -137,7 +158,6 @@ stick.addEventListener("pointerup", () => { joy = { x: 0, y: 0 }; knob.style.lef
 renderer.domElement.addEventListener("pointerdown", e => { look = true; lx = e.clientX; });
 addEventListener("pointerup", () => look = false);
 addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX - lx) * 0.006; lx = e.clientX; } });
-hide.onclick = () => card.style.display = "none";
 
 function blocked(x, z) {
   return solids.some(s => x > s.minX - R && x < s.maxX + R && z > s.minZ - R && z < s.maxZ + R);
@@ -146,6 +166,24 @@ function moveAxis(nx, nz) {
   if (!blocked(nx, player.z) && Math.abs(nx) < 3.15) player.x = nx;
   if (!blocked(player.x, nz) && nz > -15.4 && nz < 15.4) player.z = nz;
 }
+place.onclick = () => {
+  if (!current) return;
+  card.dataset.lock = "1";
+  if (current.kind === "town") {
+    cdoes.textContent = "Town parcel. The block is refused.";
+    return;
+  }
+  if (saved[current.name]) {
+    cdoes.textContent = "One block already sits on " + current.name + ".";
+    return;
+  }
+  putBlock(current.group);
+  saved[current.name] = 1;
+  localStorage.setItem(KEY, JSON.stringify(saved));
+  cdoes.textContent = "One block placed on " + current.name + ". Saved on this browser.";
+};
+hide.addEventListener("click", () => { card.dataset.lock = "1"; card.style.display = "none"; });
+
 function loop() {
   const nx = player.x + Math.sin(player.yaw) * -joy.y * 0.08 + Math.cos(player.yaw) * joy.x * 0.08;
   const nz = player.z + Math.cos(player.yaw) * -joy.y * 0.08 - Math.sin(player.yaw) * joy.x * 0.08;
@@ -157,11 +195,14 @@ function loop() {
     return dist < 1.55 && (dx * fx + dz * fz) > 0.35;
   });
   if (near && card.dataset.lock !== "1") {
+    current = near;
     cname.textContent = near.name;
     cdoes.textContent = near.kind + ". " + near.line;
+    place.textContent = near.kind === "town" ? "Town refuses" : (saved[near.name] ? "Block set" : "Place one block");
     card.style.display = "block";
     where.textContent = near.name;
   } else if (!near) {
+    current = null;
     card.dataset.lock = "0";
     card.style.display = "none";
     where.textContent = "on the cobbles";
@@ -171,7 +212,6 @@ function loop() {
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
-hide.addEventListener("click", () => { card.dataset.lock = "1"; card.style.display = "none"; });
 loop();
 addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
