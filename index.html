@@ -30,34 +30,33 @@
 <body>
 <header>
   <h1>BRIAR</h1>
-  <p>Norham. First city. Scarlet is the only street cut.</p>
-  <p class="muted">Nothing is sold yet. <a href="rules.html">Rules</a></p>
+  <p>Norham. First city. Parcels cut from the center.</p>
+  <p class="muted">Nothing is sold. No coin mint. <a href="grid.html">Parcel grid</a> · <a href="rules.html">Rules</a></p>
 </header>
 <div class="map" id="map"></div>
-<h2>SCARLET</h2>
+<h2>FIRST FIVE · FROM THE CENTER</h2>
 <div class="row" id="scarlet"></div>
 <div class="sheet" id="sheet">
   <b id="name"></b>
   <div class="muted" id="kind"></div>
   <div class="line"><span class="k">Inside</span><span id="rooms"></span></div>
-  <div class="line"><span class="k">Price</span><span id="price"></span></div>
+  <div class="line"><span class="k">Status</span><span id="price"></span></div>
   <button id="act">Open</button>
   <button class="ghost" id="close">Close</button>
   <p class="muted" id="note"></p>
 </div>
 <script>
 const places = [
-  ["Greenwood","wood","oaks","not for sale","town"],
-  ["Chapel","chapel","one room","not for sale","town"],
-  ["Gate","toll","swap Briar","city cut","town"],
-  ["Market","stalls","a day stall","not a key","town"],
-  ["Inn","public room","one hearth","not a key","town"],
-  ["Hearth","house","2 rooms","50 Briar","key"],
-  ["Loaf","shop","floor, back room","70 Briar","key"],
-  ["The Cup","inn","4 beds","160 Briar","key"],
-  ["Quill","shop","counter","80 Briar","key"],
-  ["Forge","workshop","work floor","140 Briar","key"],
-  ["Last Door","inn","5 beds","200 Briar","key"],
+  ["Greenwood","wood","oaks","unsold","town"],
+  ["Chapel","chapel","one room","unsold","town"],
+  ["Gate","toll","the gate","unsold","town"],
+  ["Market","stalls","a day stall","unsold","town"],
+  ["Inn","public room","one hearth","unsold","town"],
+  ["Hearth","house","2 rooms","1 · center","key"],
+  ["Loaf","shop","floor, back room","2","key"],
+  ["The Cup","inn","4 beds","3","key"],
+  ["Quill","shop","counter","4","key"],
+  ["Forge","workshop","work floor","5","key"],
   ["Marian","street","18 houses","not cut","later"],
   ["John","street","18 houses","not cut","later"],
   ["Much","mill street","16 houses","not cut","later"]
@@ -66,10 +65,10 @@ places.forEach(p => {
   if (p[4] === "key") {
     const d = document.createElement("article");
     d.className = "card";
-    d.innerHTML = "<b>"+p[0]+"</b><div class='muted'>"+p[1]+"</div><button>Open</button>";
+    d.innerHTML = "<b>"+p[0]+"</b><div class='muted'>"+p[3]+" · "+p[1]+"</div><button>Open</button>";
     d.querySelector("button").onclick = () => openPlace(p);
     scarlet.appendChild(d);
-  } else {
+  } else if (p[4] === "town") {
     const b = document.createElement("button");
     b.className = "block town";
     b.innerHTML = "<b>"+p[0]+"</b><div class='muted'>"+p[3]+"</div>";
@@ -82,11 +81,11 @@ function openPlace(p) {
   kind.textContent = p[1];
   rooms.textContent = p[2];
   price.textContent = p[3];
-  note.textContent = p[4] === "key" ? "A Briar key later. Nothing is sold yet." : "Not a key.";
+  note.textContent = p[4] === "key" ? "Named parcel. Not minted." : "Town place. Stays unsold.";
   act.disabled = false;
   sheet.classList.add("open");
 }
-act.onclick = () => { note.textContent = "Not open for money yet."; act.disabled = true; };
+act.onclick = () => { note.textContent = "No coin. Nothing sold."; act.disabled = true; };
 close.onclick = () => sheet.classList.remove("open");
 </script>
 </body>
