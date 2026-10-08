@@ -28,6 +28,7 @@
   <input id="good" maxlength="32" placeholder="one good">
   <button id="list" style="display:none">List for the day</button>
   <button id="carry" style="display:none">Note the week</button>
+  <button id="pass" style="display:none">Pass the key</button>
   <button id="hide">Close</button>
 </div>
 <div id="stick"><div id="knob"></div></div>
@@ -39,7 +40,9 @@ const BED = "briar.cup.bed.v1";
 const ROOM = "briar.hearth.rooms.v1";
 const MKT = "briar.market.day.v1";
 const CARRY = "briar.scarlet.carry.v1";
+const HANDS = "briar.scarlet.hands.v1";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
+const NEXT = ["the clerk", "a walker", "another walker"];
 const KEYS = ["Hearth", "Loaf", "The Cup", "Quill", "Forge"];
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
 function today() {
@@ -88,6 +91,39 @@ function paintRooms() {
   const book = roomBook();
   settle.textContent = book.Settle ? ("Settle · " + roomDays(book.Settle) + "d") : "Settle";
   loft.textContent = book.Loft ? ("Loft · " + roomDays(book.Loft) + "d") : "Loft";
+}
+function hands() {
+  try { return JSON.parse(localStorage.getItem(HANDS) || "{}"); } catch (e) { return {}; }
+}
+function handWho(name) {
+  const book = hands();
+  return (book[name] && book[name].who) || "the town";
+}
+function stayBits(name) {
+  const bits = [];
+  if (name === "The Cup") {
+    const b = bedHeld();
+    if (b) bits.push("Bed renter stays · " + bedDays(b) + "d");
+  }
+  if (name === "Hearth") {
+    const book = roomBook();
+    ["Settle", "Loft"].forEach(n => { if (book[n]) bits.push(n + " stays · " + roomDays(book[n]) + "d"); });
+  }
+  return bits;
+}
+function stayLine(name) {
+  if (!isKey(name)) return "";
+  const who = handWho(name);
+  const bits = stayBits(name);
+  let line = " Key with " + who + ".";
+  if (who !== "the town") {
+    line += bits.length
+      ? " Hands changed. " + bits.join(". ") + ". The renter stays until the week ends."
+      : " Hands changed. No renter on the week.";
+  } else if (bits.length) {
+    line += " " + bits.join(". ") + ". Until the week ends.";
+  }
+  return line;
 }
 const gold = new THREE.MeshStandardMaterial({ color: 0xe2c27a, roughness: 0.45 });
 
@@ -451,6 +487,20 @@ list.onclick = () => {
   cdoes.textContent = current.name + " lists " + good + " today. Saved on this browser.";
   good.value = "";
 };
+pass.addEventListener("click", () => {
+  if (!current || !isKey(current.name)) return;
+  card.dataset.lock = "1";
+  const book = hands();
+  const n = ((book[current.name] && book[current.name].n) || 0) + 1;
+  const who = NEXT[(n - 1) % NEXT.length];
+  book[current.name] = { who, n };
+  localStorage.setItem(HANDS, JSON.stringify(book));
+  const bits = stayBits(current.name);
+  cdoes.textContent = "Key passed to " + who + ". " + (bits.length
+    ? bits.join(". ") + ". The renter stays until the week ends."
+    : "No renter on the week.") + " Saved on this browser.";
+  pass.textContent = "Pass the key · " + who;
+});
 carry.addEventListener("click", () => {
   if (!current || !isKey(current.name) || saved[current.name]) return;
   card.dataset.lock = "1";
@@ -477,9 +527,11 @@ function loop() {
     current = near;
     cname.textContent = near.name;
     if (near.kind === "stall") near.line = stallLine(near.name);
-    cdoes.textContent = near.kind + ". " + near.line + carryLine(near.name);
+    cdoes.textContent = near.kind + ". " + near.line + carryLine(near.name) + stayLine(near.name);
     carry.style.display = isKey(near.name) && !saved[near.name] ? "inline-block" : "none";
     if (isKey(near.name) && !saved[near.name]) carry.textContent = "Note the week · " + carryDue(near.name);
+    pass.style.display = isKey(near.name) ? "inline-block" : "none";
+    if (isKey(near.name)) pass.textContent = "Pass the key · " + handWho(near.name);
     place.style.display = near.kind === "stall" ? "none" : "inline-block";
     place.textContent = near.kind === "lamp" ? "Lamp only" : refused(near.kind) ? "Board only" : (saved[near.name] ? "Block set" : "Place one block");
     bed.style.display = near.name === "The Cup" ? "inline-block" : "none";
@@ -490,7 +542,7 @@ function loop() {
       paintRooms();
       const book = roomBook();
       const held = ["Settle", "Loft"].filter(n => book[n]).map(n => n + " · " + roomDays(book[n]) + "d");
-      if (held.length) cdoes.textContent = "house. " + held.join(". ") + ". A room, not the box.";
+      if (held.length) cdoes.textContent = "house. " + held.join(". ") + ". A room, not the box." + stayLine(near.name);
     }
     list.style.display = near.kind === "stall" ? "inline-block" : "none";
     good.style.display = near.kind === "stall" ? "inline-block" : "none";

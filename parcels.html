@@ -17,7 +17,7 @@
 </head>
 <body>
 <div id="card"><b id="cname"></b><div class="muted" id="cmeta"></div><div id="cdoes"></div>
-  <button id="place">Place one block</button><button id="bed" style="display:none">Rent a bed</button><button id="settle" style="display:none">Settle</button><button id="loft" style="display:none">Loft</button><button id="carry" style="display:none">Note the week</button><button class="ghost" id="hide">Close</button></div>
+  <button id="place">Place one block</button><button id="bed" style="display:none">Rent a bed</button><button id="settle" style="display:none">Settle</button><button id="loft" style="display:none">Loft</button><button id="carry" style="display:none">Note the week</button><button id="pass" style="display:none">Pass the key</button><button class="ghost" id="hide">Close</button></div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
@@ -26,12 +26,47 @@ const CARRY = "briar.scarlet.carry.v1";
 const KEYS = ["Hearth", "Loaf", "The Cup", "Quill", "Forge"];
 const BED = "briar.cup.bed.v1";
 const ROOM = "briar.hearth.rooms.v1";
+const HANDS = "briar.scarlet.hands.v1";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
+const NEXT = ["the clerk", "a walker", "another walker"];
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
 function carryBook() {
   try { return JSON.parse(localStorage.getItem(CARRY) || "{}"); } catch (e) { return {}; }
 }
 function isKey(name) { return KEYS.indexOf(name) !== -1; }
+function hands() {
+  try { return JSON.parse(localStorage.getItem(HANDS) || "{}"); } catch (e) { return {}; }
+}
+function handWho(name) {
+  const book = hands();
+  return (book[name] && book[name].who) || "the town";
+}
+function stayBits(name) {
+  const bits = [];
+  if (name === "The Cup") {
+    const b = bedHeld();
+    if (b) bits.push("Bed renter stays · " + bedDays(b) + "d");
+  }
+  if (name === "Hearth") {
+    const book = roomBook();
+    ["Settle", "Loft"].forEach(n => { if (book[n]) bits.push(n + " stays · " + roomDays(book[n]) + "d"); });
+  }
+  return bits;
+}
+function stayLine(name) {
+  if (!isKey(name)) return "";
+  const who = handWho(name);
+  const bits = stayBits(name);
+  let line = " Key with " + who + ".";
+  if (who !== "the town") {
+    line += bits.length
+      ? " Hands changed. " + bits.join(". ") + ". The renter stays until the week ends."
+      : " Hands changed. No renter on the week.";
+  } else if (bits.length) {
+    line += " " + bits.join(". ") + ". Until the week ends.";
+  }
+  return line;
+}
 function restCarry(name) {
   const book = carryBook();
   if (book[name]) { delete book[name]; localStorage.setItem(CARRY, JSON.stringify(book)); }
@@ -143,9 +178,11 @@ renderer.domElement.addEventListener("pointerdown", e => {
   selected = hit.object.parent;
   cname.textContent = selected.userData.name;
   cmeta.textContent = selected.userData.kind + " parcel";
-  cdoes.textContent = selected.userData.does + carryLine(selected.userData.name);
+  cdoes.textContent = selected.userData.does + carryLine(selected.userData.name) + stayLine(selected.userData.name);
   carry.style.display = isKey(selected.userData.name) && !saved[selected.userData.name] ? "inline-block" : "none";
   if (isKey(selected.userData.name) && !saved[selected.userData.name]) carry.textContent = "Note the week · " + carryDue(selected.userData.name);
+  pass.style.display = isKey(selected.userData.name) ? "inline-block" : "none";
+  if (isKey(selected.userData.name)) pass.textContent = "Pass the key · " + handWho(selected.userData.name);
   place.textContent = (selected.userData.kind === "town" || selected.userData.kind === "toll") ? "Town refuses" : (saved[selected.userData.name] ? "Block set" : "Place one block");
   const cup = selected.userData.name === "The Cup";
   bed.style.display = cup ? "inline-block" : "none";
@@ -211,6 +248,20 @@ place.onclick = () => {
   carry.style.display = "none";
   cdoes.textContent = "One block placed. Occupied. The carry rests. Saved on this browser.";
   place.textContent = "Block set";
+};
+pass.onclick = () => {
+  if (!selected || !isKey(selected.userData.name)) return;
+  const name = selected.userData.name;
+  const book = hands();
+  const n = ((book[name] && book[name].n) || 0) + 1;
+  const who = NEXT[(n - 1) % NEXT.length];
+  book[name] = { who, n };
+  localStorage.setItem(HANDS, JSON.stringify(book));
+  const bits = stayBits(name);
+  cdoes.textContent = "Key passed to " + who + ". " + (bits.length
+    ? bits.join(". ") + ". The renter stays until the week ends."
+    : "No renter on the week.") + " Saved on this browser.";
+  pass.textContent = "Pass the key · " + who;
 };
 carry.onclick = () => {
   if (!selected || !isKey(selected.userData.name) || saved[selected.userData.name]) return;
