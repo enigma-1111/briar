@@ -5,48 +5,85 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Norham</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #000; color: #f4ead8; font: 18px/1.4 Georgia, serif; }
-  .scene { min-height: 100vh; background: #000 center/cover no-repeat; position: relative; }
-  .scene:after { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 35%, #000 92%); }
-  .cap { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 22px 18px 32px; }
-  h1 { margin: 0 0 6px; letter-spacing: .14em; font-weight: normal; }
-  button { font: inherit; border: 0; border-radius: 999px; padding: 10px 14px; margin: 8px 8px 0 0; background: #e2c27a; color: #1a140c; }
-  .ghost { background: transparent; color: #e2c27a; border: 1px solid #e2c27a; }
-  .muted { color: #e6d7b8; }
+  body { margin: 0; background: #100e0c; color: #f4ead8; font: 17px/1.4 Georgia, serif; }
+  header, main { padding: 16px; }
+  h1 { margin: 0; letter-spacing: .16em; font-weight: normal; }
+  h2 { font-weight: normal; letter-spacing: .08em; font-size: 15px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .card { border: 1px solid #4a3d28; border-radius: 14px; padding: 12px; background: #17140f; }
+  .town { background: #1c2218; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin-top: 8px; background: #e2c27a; color: #1a140c; }
+  .muted { color: #cbb892; }
+  #sheet { position: fixed; left: 0; right: 0; bottom: 0; background: #14120e; border-top: 1px solid #4a3d28; padding: 16px 16px 28px; display: none; }
   a { color: #e2c27a; }
 </style>
 </head>
 <body>
-<div class="scene" id="scene">
-  <div class="cap">
-    <h1 id="title">THE INN</h1>
-    <p class="muted" id="line">Norham. Not a key.</p>
-    <button id="next">Walk on</button>
-    <button class="ghost" id="look">Look</button>
-    <p class="muted" id="note"></p>
-    <p><a href="index.html">The list</a></p>
-  </div>
+<header>
+  <h1>NORHAM</h1>
+  <p>A Briar city. Scarlet is the only street cut.</p>
+  <p class="muted" id="bag">Wallet closed.</p>
+</header>
+<main>
+  <h2>THE CITY</h2>
+  <div class="grid" id="city"></div>
+  <h2>OUR MONEY</h2>
+  <article class="card">
+    <p>Briar is the toll. A key is a building. Rent pays the holder. The Gate keeps a tenth. Town places cannot be bought. Empty keys pay a weekly carrying fee so they move.</p>
+    <p class="muted">No airdrop. No burn. No promised profit.</p>
+  </article>
+  <p><a href="walk.html">Walk</a> · <a href="voxels.html">Chunks</a> · <a href="rules.html">Rules</a></p>
+</main>
+<div id="sheet">
+  <b id="name"></b>
+  <div class="muted" id="meta"></div>
+  <p id="line"></p>
+  <button id="act">Do</button>
+  <button id="close">Close</button>
 </div>
 <script>
-const spots = [
-  ["img/pub.jpg","THE INN","Not a key. Everyone can come in.","One hearth."],
-  ["img/green.jpg","THE GREEN","A park. Not for sale.","Benches. One lamp."],
-  ["img/street.jpg","SCARLET","The only street of keys.","Houses, shops, inns. Nothing is sold yet."],
-  ["img/market.jpg","MARKET","Stalls for the day.","Not a parcel."],
-  ["img/wood.jpg","THE GREENWOOD","Oaks and a chapel.","Not a key."],
-  ["img/wick.jpg","THE LANE","Warm windows. Wet stone.","A Briar key later."]
+const places = [
+  ["Greenwood","town","Walk. Not a key."],
+  ["Chapel","town","One room. Not a key."],
+  ["Gate","town","Swap Briar. City keeps a tenth."],
+  ["Market","town","A day stall. Not a parcel."],
+  ["Inn","town","A public hearth. Not a key."],
+  ["Hearth","house","Two rooms. 50 Briar."],
+  ["Loaf","shop","Floor and back room. 70 Briar."],
+  ["The Cup","inn","Four beds. 160 Briar."],
+  ["Quill","shop","List an NFT. 80 Briar."],
+  ["Marian","later","Drawn. Not cut."],
+  ["John","later","Drawn. Not cut."],
+  ["Much","later","Drawn. Not cut."]
 ];
-let i = 0;
-function show() {
-  const s = spots[i];
-  scene.style.backgroundImage = "url("+s[0]+")";
-  title.textContent = s[1];
-  line.textContent = s[2];
-  note.textContent = "";
+const save = JSON.parse(localStorage.getItem("briar.city.v1") || "{}");
+const city = document.getElementById("city");
+places.forEach(p => {
+  const b = document.createElement("button");
+  b.className = "card" + (p[1] === "key" || p[1] === "house" || p[1] === "shop" || p[1] === "inn" ? "" : " town");
+  b.innerHTML = "<b>"+p[0]+"</b><div class='muted'>"+p[1]+"</div>";
+  b.onclick = () => open(p);
+  city.appendChild(b);
+});
+function open(p) {
+  name.textContent = p[0];
+  meta.textContent = p[1];
+  line.textContent = p[2];
+  const held = save[p[0]];
+  act.style.display = p[1] === "town" || p[1] === "later" ? "none" : "inline-block";
+  act.textContent = held ? "Held" : "Take key";
+  act.disabled = !!held;
+  sheet.style.display = "block";
+  act.onclick = () => {
+    save[p[0]] = "you";
+    localStorage.setItem("briar.city.v1", JSON.stringify(save));
+    bag.textContent = "Keys on this phone: " + Object.keys(save).join(", ");
+    line.textContent = "Key saved here. No coin moved.";
+    act.disabled = true;
+  };
 }
-next.onclick = () => { i = (i + 1) % spots.length; show(); };
-look.onclick = () => { note.textContent = spots[i][3]; };
-show();
+close.onclick = () => sheet.style.display = "none";
+if (Object.keys(save).length) bag.textContent = "Keys on this phone: " + Object.keys(save).join(", ");
 </script>
 </body>
 </html>
