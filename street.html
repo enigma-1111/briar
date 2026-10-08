@@ -23,6 +23,8 @@
   <p id="cdoes"></p>
   <button id="place">Place one block</button>
   <button id="bed" style="display:none">Rent a bed</button>
+  <button id="settle" style="display:none">Settle</button>
+  <button id="loft" style="display:none">Loft</button>
   <input id="good" maxlength="32" placeholder="one good">
   <button id="list" style="display:none">List for the day</button>
   <button id="hide">Close</button>
@@ -33,6 +35,7 @@ import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 
 const KEY = "briar.scarlet.blocks.v1";
 const BED = "briar.cup.bed.v1";
+const ROOM = "briar.hearth.rooms.v1";
 const MKT = "briar.market.day.v1";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
@@ -66,6 +69,22 @@ function bedHeld() {
 }
 function bedDays(b) {
   return Math.max(1, Math.ceil((b.until - Date.now()) / 86400000));
+}
+function roomBook() {
+  try {
+    const b = JSON.parse(localStorage.getItem(ROOM) || "{}");
+    const out = {};
+    ["Settle", "Loft"].forEach(n => { if (b[n] && b[n] > Date.now()) out[n] = b[n]; });
+    return out;
+  } catch (e) { return {}; }
+}
+function roomDays(until) {
+  return Math.max(1, Math.ceil((until - Date.now()) / 86400000));
+}
+function paintRooms() {
+  const book = roomBook();
+  settle.textContent = book.Settle ? ("Settle · " + roomDays(book.Settle) + "d") : "Settle";
+  loft.textContent = book.Loft ? ("Loft · " + roomDays(book.Loft) + "d") : "Loft";
 }
 const gold = new THREE.MeshStandardMaterial({ color: 0xe2c27a, roughness: 0.45 });
 
@@ -171,7 +190,7 @@ function house(x, z, face, name, kind, line) {
   if (saved[name]) putBlock(g);
   doors.push({ x, z: doorZ, name, kind, line, group: g });
 }
-house(-3.4, -8, 0xc4b49a, "Hearth", "house", "Two rooms. Open. One block, saved on this browser.");
+house(-3.4, -8, 0xc4b49a, "Hearth", "house", "Two rooms: Settle and Loft. A week rent. The box stays with the key.");
 house(3.4, -4, 0x8a5a48, "Loaf", "shop", "Floor and a back room. Open. One block.");
 house(-3.4, 0, 0x6e5344, "The Cup", "inn", "Four beds. A week rent. The box stays with the key.");
 house(3.4, 4, 0xb7a48c, "Quill", "shop", "A counter. Open. One block.");
@@ -362,6 +381,21 @@ place.onclick = () => {
   localStorage.setItem(KEY, JSON.stringify(saved));
   cdoes.textContent = "One block placed on " + current.name + ". Saved on this browser.";
 };
+function rentRoom(name) {
+  if (!current || current.name !== "Hearth") return;
+  card.dataset.lock = "1";
+  const book = roomBook();
+  if (book[name]) {
+    cdoes.textContent = name + " already held for " + roomDays(book[name]) + " day" + (roomDays(book[name]) === 1 ? "" : "s") + ". The box is not yours.";
+    return;
+  }
+  book[name] = Date.now() + WEEK;
+  localStorage.setItem(ROOM, JSON.stringify(book));
+  cdoes.textContent = name + " rented for a week. A room, not the box. Saved on this browser.";
+  paintRooms();
+}
+settle.onclick = () => rentRoom("Settle");
+loft.onclick = () => rentRoom("Loft");
 bed.onclick = () => {
   if (!current || current.name !== "The Cup") return;
   card.dataset.lock = "1";
@@ -410,6 +444,15 @@ function loop() {
     place.style.display = near.kind === "stall" ? "none" : "inline-block";
     place.textContent = near.kind === "lamp" ? "Lamp only" : refused(near.kind) ? "Board only" : (saved[near.name] ? "Block set" : "Place one block");
     bed.style.display = near.name === "The Cup" ? "inline-block" : "none";
+    const hearth = near.name === "Hearth";
+    settle.style.display = hearth ? "inline-block" : "none";
+    loft.style.display = hearth ? "inline-block" : "none";
+    if (hearth) {
+      paintRooms();
+      const book = roomBook();
+      const held = ["Settle", "Loft"].filter(n => book[n]).map(n => n + " · " + roomDays(book[n]) + "d");
+      if (held.length) cdoes.textContent = "house. " + held.join(". ") + ". A room, not the box.";
+    }
     list.style.display = near.kind === "stall" ? "inline-block" : "none";
     good.style.display = near.kind === "stall" ? "inline-block" : "none";
     if (near.name === "The Cup") {

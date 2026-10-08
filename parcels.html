@@ -17,12 +17,13 @@
 </head>
 <body>
 <div id="card"><b id="cname"></b><div class="muted" id="cmeta"></div><div id="cdoes"></div>
-  <button id="place">Place one block</button><button id="bed" style="display:none">Rent a bed</button><button class="ghost" id="hide">Close</button></div>
+  <button id="place">Place one block</button><button id="bed" style="display:none">Rent a bed</button><button id="settle" style="display:none">Settle</button><button id="loft" style="display:none">Loft</button><button class="ghost" id="hide">Close</button></div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 const KEY = "briar.scarlet.blocks.v1";
 const BED = "briar.cup.bed.v1";
+const ROOM = "briar.hearth.rooms.v1";
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
 function bedHeld() {
@@ -35,9 +36,25 @@ function bedHeld() {
 function bedDays(b) {
   return Math.max(1, Math.ceil((b.until - Date.now()) / 86400000));
 }
+function roomBook() {
+  try {
+    const b = JSON.parse(localStorage.getItem(ROOM) || "{}");
+    const out = {};
+    ["Settle", "Loft"].forEach(n => { if (b[n] && b[n] > Date.now()) out[n] = b[n]; });
+    return out;
+  } catch (e) { return {}; }
+}
+function roomDays(until) {
+  return Math.max(1, Math.ceil((until - Date.now()) / 86400000));
+}
+function paintRooms() {
+  const book = roomBook();
+  settle.textContent = book.Settle ? ("Settle · " + roomDays(book.Settle) + "d") : "Settle";
+  loft.textContent = book.Loft ? ("Loft · " + roomDays(book.Loft) + "d") : "Loft";
+}
 const parcels = [
   ["The Inn","town",-4,0,0x6d5a40,"Public. Not a parcel you can buy."],
-  ["Hearth","house",-4,0,0x7a6248,"2 rooms. Open. First out from the Gate."],
+  ["Hearth","house",-4,0,0x7a6248,"Two rooms: Settle and Loft. A week rent. The box stays with the key."],
   ["Loaf","shop",4,0,0x665444,"Floor and back room."],
   ["The Cup","inn",8,0,0x5e5144,"4 beds. A week rent. The box stays with the key."],
   ["Chapel","town",-4,5,0x3e443c,"Not for sale."],
@@ -111,10 +128,33 @@ renderer.domElement.addEventListener("pointerdown", e => {
     bed.textContent = held ? ("Bed held · " + bedDays(held) + "d") : "Rent a bed";
     if (held) cdoes.textContent = "Bed held for " + bedDays(held) + " day" + (bedDays(held) === 1 ? "" : "s") + ". The box is not yours.";
   }
+  const hearth = selected.userData.name === "Hearth";
+  settle.style.display = hearth ? "inline-block" : "none";
+  loft.style.display = hearth ? "inline-block" : "none";
+  if (hearth) {
+    paintRooms();
+    const book = roomBook();
+    const held = ["Settle", "Loft"].filter(n => book[n]).map(n => n + " · " + roomDays(book[n]) + "d");
+    if (held.length) cdoes.textContent = held.join(". ") + ". A room, not the box.";
+  }
   card.style.display = "block";
 });
 addEventListener("pointerup", () => look = false);
 addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX-lx)*0.006; lx = e.clientX; } });
+function rentRoom(name) {
+  if (!selected || selected.userData.name !== "Hearth") return;
+  const book = roomBook();
+  if (book[name]) {
+    cdoes.textContent = name + " already held for " + roomDays(book[name]) + " day" + (roomDays(book[name]) === 1 ? "" : "s") + ". The box is not yours.";
+    return;
+  }
+  book[name] = Date.now() + WEEK;
+  localStorage.setItem(ROOM, JSON.stringify(book));
+  cdoes.textContent = name + " rented for a week. A room, not the box. Saved on this browser.";
+  paintRooms();
+}
+settle.onclick = () => rentRoom("Settle");
+loft.onclick = () => rentRoom("Loft");
 bed.onclick = () => {
   if (!selected || selected.userData.name !== "The Cup") return;
   const held = bedHeld();
