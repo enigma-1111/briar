@@ -137,6 +137,50 @@ house(3.4, 4, 0xb7a48c, "Quill", "shop", "A counter. Open. One block.");
 house(-3.4, 8, 0x4e4036, "Forge", "workshop", "Work floor. Open. One block.");
 house(3.4, 12, 0x7a4038, "Last Door", "inn", "Five beds. Open. The end of Scarlet.");
 
+function hangSign(x, z, faceStreet, label, line) {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 192;
+  const g2 = c.getContext("2d");
+  g2.fillStyle = "#cbb892";
+  g2.fillRect(0, 0, 512, 192);
+  g2.strokeStyle = "#3a2a18";
+  g2.lineWidth = 16;
+  g2.strokeRect(10, 10, 492, 172);
+  g2.fillStyle = "#1c140c";
+  g2.font = label.length > 10 ? "52px Georgia" : "64px Georgia";
+  g2.textAlign = "center";
+  g2.textBaseline = "middle";
+  g2.fillText(label, 256, 100);
+  const tex = new THREE.CanvasTexture(c);
+  const board = new THREE.Mesh(
+    new THREE.BoxGeometry(1.45, 0.5, 0.06),
+    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.78 })
+  );
+  const iron = new THREE.MeshStandardMaterial({ color: 0x2c2a28, metalness: 0.35, roughness: 0.55 });
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.85), iron);
+  arm.position.set(0, 0.38, faceStreet > 0 ? -0.4 : 0.4);
+  const hook = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.55, 0.07), iron);
+  hook.position.set(0, 0.62, faceStreet > 0 ? -0.78 : 0.78);
+  const grp = new THREE.Group();
+  grp.add(board, arm, hook);
+  grp.position.set(x, 2.45, z);
+  grp.rotation.y = faceStreet > 0 ? Math.PI / 2 : -Math.PI / 2;
+  scene.add(grp);
+  doors.push({
+    x, z,
+    name: label,
+    kind: "sign",
+    line: line,
+    group: grp
+  });
+}
+hangSign(-2.05, -1.1, 1, "Inn", "Painted board over The Cup. A bed, not the box.");
+hangSign(2.05, -5.1, -1, "Sweep", "A broom on the board. Not a house.");
+hangSign(-2.05, 7.2, 1, "Crooked Crow", "Old tavern board. The bird is painted, not a person.");
+hangSign(2.05, 11.2, -1, "Last Lamp", "Last lit board on Scarlet. Not a key.");
+hangSign(2.05, 3.1, -1, "Clerk", "A desk board by Quill. The counter stays the shop.");
+
 const well = new THREE.Group();
 const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.82, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x6a7268 }));
 rim.position.y = 0.35;
@@ -179,11 +223,12 @@ function moveAxis(nx, nz) {
   if (!blocked(nx, player.z) && Math.abs(nx) < 3.15) player.x = nx;
   if (!blocked(player.x, nz) && nz > -15.4 && nz < 15.4) player.z = nz;
 }
+function refused(kind) { return kind === "town" || kind === "sign"; }
 place.onclick = () => {
   if (!current) return;
   card.dataset.lock = "1";
-  if (current.kind === "town") {
-    cdoes.textContent = "Town parcel. The block is refused.";
+  if (refused(current.kind)) {
+    cdoes.textContent = current.kind === "sign" ? "A hanging board. The block is refused." : "Town parcel. The block is refused.";
     return;
   }
   if (saved[current.name]) {
@@ -223,7 +268,7 @@ function loop() {
     current = near;
     cname.textContent = near.name;
     cdoes.textContent = near.kind + ". " + near.line;
-    place.textContent = near.kind === "town" ? "Town refuses" : (saved[near.name] ? "Block set" : "Place one block");
+    place.textContent = refused(near.kind) ? "Board only" : (saved[near.name] ? "Block set" : "Place one block");
     bed.style.display = near.name === "The Cup" ? "inline-block" : "none";
     if (near.name === "The Cup") {
       const held = bedHeld();
