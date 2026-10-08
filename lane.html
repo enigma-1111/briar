@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Norham</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0c1016; overflow: hidden; touch-action: none; color: #f4ead8; font: 16px Georgia, serif; }
+  canvas { display: block; }
+  #sheet { position: fixed; left: 0; right: 0; bottom: 0; background: #14120ef2; border-top: 1px solid #e2c27a; padding: 16px 16px 28px; transform: translateY(110%); transition: .2s; }
+  #sheet.open { transform: none; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 10px 14px; margin-top: 8px; background: #e2c27a; color: #1a140c; }
+  .ghost { background: transparent; color: #e2c27a; border: 1px solid #e2c27a; margin-left: 8px; }
+  .muted { color: #cbb892; }
+</style>
+</head>
+<body>
+<div id="sheet"><b id="name"></b><div class="muted" id="meta"></div><p id="line"></p>
+  <button id="close">Back</button></div>
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x141820);
+scene.fog = new THREE.Fog(0x141820, 8, 36);
+const camera = new THREE.PerspectiveCamera(62, innerWidth/innerHeight, 0.1, 80);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.prepend(renderer.domElement);
+scene.add(new THREE.AmbientLight(0x8090a8, 0.45));
+const warm = new THREE.PointLight(0xffb15a, 6, 18);
+warm.position.set(0, 4, 2);
+scene.add(warm);
+const loader = new THREE.TextureLoader();
+const pics = ["img/pub.jpg","img/street.jpg","img/market.jpg","img/wood.jpg","img/wick.jpg","img/green.jpg"].map(u => loader.load(u));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color:0x1c1814 }));
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+const lane = [];
+for (let i = 0; i < 28; i++) {
+  const t = i / 27;
+  lane.push(new THREE.Vector3(Math.sin(t * 2.2) * 6, 0.03, -12 + t * 24));
+}
+const roadMat = new THREE.MeshStandardMaterial({ color:0x3a3228, roughness:1 });
+for (let i = 0; i < lane.length - 1; i++) {
+  const a = lane[i], b = lane[i+1];
+  const cobble = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.04, a.distanceTo(b)+0.2), roadMat);
+  cobble.position.copy(a).lerp(b, 0.5);
+  cobble.lookAt(b.x, 0.03, b.z);
+  scene.add(cobble);
+  if (i % 4 === 0) {
+    const lamp = new THREE.PointLight(0xffc98a, 1.4, 6);
+    lamp.position.set(a.x + 1.4, 2.1, a.z);
+    scene.add(lamp);
+  }
+}
+const signs = ["The Inn","Sweep","Crooked Crow","Last Lamp","Clerk","Chapel","Gate","Hearth"];
+const boards = [];
+signs.forEach((label, i) => {
+  const p = lane[3 + i * 3];
+  const side = i % 2 ? 1.8 : -1.8;
+  const mat = new THREE.MeshStandardMaterial({ map: pics[i % pics.length] });
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.4, 0.3), mat);
+  wall.position.set(p.x + side, 1.2, p.z);
+  wall.lookAt(p.x, 1.2, p.z);
+  wall.userData = { name: label, kind: i < 2 ? "town" : "house", line: i < 2 ? "Not a key." : "A door on the lane." };
+  scene.add(wall);
+  boards.push(wall);
+});
+const player = { i: 4, yaw: 0 };
+let joy = 0;
+addEventListener("pointerdown", e => {
+  if (e.clientY > innerHeight - 120) return;
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1), camera);
+  const hit = ray.intersectObjects(boards)[0];
+  if (!hit) { joy = e.clientX > innerWidth/2 ? 1 : -1; return; }
+  name.textContent = hit.object.userData.name;
+  meta.textContent = hit.object.userData.kind;
+  line.textContent = hit.object.userData.line;
+  sheet.classList.add("open");
+});
+addEventListener("pointerup", () => joy = 0);
+close.onclick = () => sheet.classList.remove("open");
+function loop() {
+  player.i = Math.max(1, Math.min(lane.length - 2, player.i + joy * 0.04));
+  const p = lane[Math.floor(player.i)];
+  const n = lane[Math.min(lane.length - 1, Math.floor(player.i) + 1)];
+  camera.position.set(p.x, 1.6, p.z);
+  camera.lookAt(n.x, 1.4, n.z);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+addEventListener("resize", () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+</script>
+</body>
+</html>
