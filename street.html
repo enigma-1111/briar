@@ -72,45 +72,56 @@ const gold = new THREE.MeshStandardMaterial({ color: 0xe2c27a, roughness: 0.45 }
 const cob = document.createElement("canvas");
 cob.width = cob.height = 256;
 const cg = cob.getContext("2d");
-cg.fillStyle = "#3a332b";
+cg.fillStyle = "#141210";
 cg.fillRect(0, 0, 256, 256);
 for (let i = 0; i < 90; i++) {
   const x = (i * 47) % 256;
   const y = (i * 29) % 256;
   const w = 22 + (i % 5) * 4;
   const h = 16 + (i % 4) * 3;
-  cg.fillStyle = `rgb(${68 + (i % 7) * 6},${58 + (i % 5) * 4},${46 + (i % 3) * 5})`;
+  const wet = 28 + (i % 6) * 4;
+  cg.fillStyle = `rgb(${wet + 8},${wet + 6},${wet + 4})`;
   cg.beginPath();
   cg.ellipse(x, y, w / 2, h / 2, (i % 5) * 0.2, 0, 7);
   cg.fill();
-  cg.strokeStyle = "#2a241c";
+  cg.strokeStyle = "#0c0b0a";
   cg.lineWidth = 2;
   cg.stroke();
+  cg.strokeStyle = "rgba(90,110,130,.28)";
+  cg.lineWidth = 1;
+  cg.beginPath();
+  cg.moveTo(x - w * 0.28, y - h * 0.12);
+  cg.lineTo(x + w * 0.22, y - h * 0.22);
+  cg.stroke();
+}
+cg.fillStyle = "rgba(70,90,110,.12)";
+for (let s = 0; s < 5; s++) {
+  cg.fillRect(8 + s * 48, 20 + s * 30, 18, 180);
 }
 const cobble = new THREE.CanvasTexture(cob);
 cobble.wrapS = cobble.wrapT = THREE.RepeatWrapping;
 cobble.repeat.set(6, 18);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x12161e);
-scene.fog = new THREE.Fog(0x12161e, 8, 32);
+scene.background = new THREE.Color(0x05070c);
+scene.fog = new THREE.Fog(0x05070c, 5, 20);
 const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 60);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 document.body.prepend(renderer.domElement);
-scene.add(new THREE.AmbientLight(0x8a94a8, 0.42));
-scene.add(new THREE.HemisphereLight(0x9aa4b8, 0x2a241c, 0.35));
+scene.add(new THREE.AmbientLight(0x1c2436, 0.16));
+scene.add(new THREE.HemisphereLight(0x1a2438, 0x0a0908, 0.1));
 
 const street = new THREE.Mesh(
   new THREE.PlaneGeometry(7.2, 36),
-  new THREE.MeshStandardMaterial({ map: cobble, roughness: 1 })
+  new THREE.MeshStandardMaterial({ map: cobble, roughness: 0.38, metalness: 0.14 })
 );
 street.rotation.x = -Math.PI / 2;
 scene.add(street);
 const verge = new THREE.Mesh(
   new THREE.PlaneGeometry(14, 36),
-  new THREE.MeshStandardMaterial({ color: 0x1c2218, roughness: 1 })
+  new THREE.MeshStandardMaterial({ color: 0x10140f, roughness: 0.9 })
 );
 verge.rotation.x = -Math.PI / 2;
 verge.position.y = -0.02;
@@ -139,11 +150,16 @@ function house(x, z, face, name, kind, line) {
   const roof = new THREE.Mesh(new THREE.ConeGeometry(2.55, 1.15, 4), new THREE.MeshStandardMaterial({ color: 0x1b140f }));
   roof.position.y = 3.5;
   roof.rotation.y = Math.PI / 4;
-  const win = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), new THREE.MeshBasicMaterial({ color: 0xffc98a }));
-  win.position.set(0.7, 1.7, 1.62);
+  const pane = new THREE.MeshBasicMaterial({ color: 0xffb15a });
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.62), pane);
+  win.position.set(0.78, 1.72, 1.62);
+  const win2 = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.5), pane);
+  win2.position.set(-0.22, 1.78, 1.62);
+  const hearth = new THREE.PointLight(0xff9a42, 1.1, 5.2, 2);
+  hearth.position.set(0.28, 1.7, 2.05);
   const door = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.25, 0.12), timber);
   door.position.set(-0.45, 0.64, 1.66);
-  g.add(body, beam, roof, win, door);
+  g.add(body, beam, roof, win, win2, hearth, door);
   g.position.set(x, 0, z);
   if (x > 0) g.rotation.y = Math.PI;
   scene.add(g);
