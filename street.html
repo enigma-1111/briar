@@ -8,12 +8,16 @@
   html, body { margin: 0; height: 100%; background: #07080c; overflow: hidden; touch-action: none; color: #f4ead8; font: 16px Georgia, serif; }
   canvas { display: block; }
   #hud { position: fixed; left: 14px; top: 12px; text-shadow: 0 2px 6px #000; pointer-events: none; }
-  #card { position: fixed; left: 12px; right: 12px; bottom: 124px; display: none; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px 14px; }
+  #card { position: fixed; left: 12px; right: 12px; bottom: calc(132px + env(safe-area-inset-bottom)); z-index: 6; display: none; max-height: calc(100dvh - 168px - env(safe-area-inset-bottom)); overflow-y: auto; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px 14px; }
   #card p { margin: 6px 0 10px; color: #e8dcc4; }
   button, #good { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 0 8px 8px 0; background: #e2c27a; color: #1a140c; }
-  #good { display: none; width: 160px; background: #1a1612; color: #f4ead8; border: 1px solid #e2c27a; }
-  #stick { position: fixed; left: 16px; bottom: 16px; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); touch-action: none; }
+  #good { display: none; width: 160px; max-width: 100%; background: #1a1612; color: #f4ead8; border: 1px solid #e2c27a; }
+  #stick { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 4; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); touch-action: none; }
   #knob { width: 42px; height: 42px; border-radius: 50%; background: #e2c27a; position: absolute; left: 31px; top: 31px; }
+  @media (max-width: 520px) {
+    #stick { left: auto; right: 16px; }
+    #card { bottom: calc(136px + env(safe-area-inset-bottom)); }
+  }
 </style>
 </head>
 <body>
