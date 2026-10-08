@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Norham</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #07080c; overflow: hidden; touch-action: none; color: #f4ead8; font: 16px/1.35 Georgia, serif; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 14px; top: 12px; text-shadow: 0 1px 4px #000; pointer-events: none; }
+  #card { position: fixed; left: 12px; right: 12px; bottom: 128px; background: #14120ef2; border: 1px solid #4a3d28; border-radius: 14px; padding: 12px 14px; display: none; }
+  .muted { color: #cbb892; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 8px 8px 0 0; background: #e2c27a; color: #1a140c; }
+  .ghost { background: transparent; color: #e2c27a; border: 1px solid #e2c27a; }
+  #stick { position: fixed; left: 16px; bottom: 16px; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.55); z-index: 2; }
+  #knob { width: 42px; height: 42px; border-radius: 50%; background: rgba(226,194,122,.9); position: absolute; left: 31px; top: 31px; }
+</style>
+</head>
+<body>
+<div id="hud">NORHAM<br><span id="where">Scarlet</span></div>
+<div id="card"><b id="cname"></b><div class="muted" id="cmeta"></div><div id="cdoes"></div>
+  <button id="go">Go in</button><button class="ghost" id="hide">Close</button></div>
+<div id="stick"><div id="knob"></div></div>
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+const S = 16;
+function chunk(paint) {
+  const g = new Uint8Array(S * S * S);
+  const at = (x, y, z) => x + S * (y + S * z);
+  paint((x, y, z, c) => { if (x>=0&&y>=0&&z>=0&&x<S&&y<S&&z<S) g[at(x,y,z)] = c; });
+  const pos = [], col = [];
+  const faces = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  const shade = [0.85, 0.7, 1, 0.55, 0.9, 0.75];
+  const palette = { 1:[0.45,0.38,0.28], 2:[0.12,0.09,0.07], 3:[0.89,0.76,0.48], 4:[0.25,0.32,0.22], 5:[0.55,0.32,0.16] };
+  for (let z=0;z<S;z++) for (let y=0;y<S;y++) for (let x=0;x<S;x++) {
+    const id = g[at(x,y,z)];
+    if (!id) continue;
+    faces.forEach((f, i) => {
+      const nx=x+f[0], ny=y+f[1], nz=z+f[2];
+      if (nx>=0&&ny>=0&&nz>=0&&nx<S&&ny<S&&nz<S&&g[at(nx,ny,nz)]) return;
+      const p = palette[id];
+      const c = p.map(v => v * shade[i]);
+      const corners = faceCorners(x, y, z, f);
+      corners.forEach(q => { pos.push(q[0], q[1], q[2]); col.push(c[0], c[1], c[2]); });
+    });
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+}
+function faceCorners(x,y,z,f) {
+  const q = [];
+  if (f[0]) { const s=f[0]>0?x+1:x; q.push([s,y,z],[s,y+1,z],[s,y+1,z+1],[s,y,z],[s,y+1,z+1],[s,y,z+1]); }
+  if (f[1]) { const s=f[1]>0?y+1:y; q.push([x,s,z],[x+1,s,z],[x+1,s,z+1],[x,s,z],[x+1,s,z+1],[x,s,z+1]); }
+  if (f[2]) { const s=f[2]>0?z+1:z; q.push([x,y,s],[x+1,y,s],[x+1,y+1,s],[x,y,s],[x+1,y+1,s],[x,y+1,s]); }
+  return q;
+}
+function house(wall) {
+  return chunk((set) => {
+    for (let y=0;y<6;y++) for (let z=0;z<8;z++) for (let x=0;x<8;x++) {
+      const edge = x===0||x===7||z===0||z===7||y===0||y===5;
+      const door = z===7 && y>0 && y<4 && x>2 && x<5;
+      const window = (x===0||x===7) && y===3 && z>2 && z<5;
+      if (door) continue;
+      if (edge) set(x,y,z, window ? 3 : y===5 ? 2 : wall);
+      if (y===1 && x>2 && x<5 && z>1 && z<4) set(x,y,z,5);
+    }
+  });
+}
+const places = [
+  { name:"The Inn", kind:"town", x:-6, z:-4, wall:1, does:"Public room. Not a key." },
+  { name:"Hearth", kind:"house", x:6, z:-4, wall:1, does:"Two rooms. Rent one." },
+  { name:"Loaf", kind:"shop", x:6, z:4, wall:1, does:"Floor and a back room." },
+  { name:"Greenwood", kind:"town", x:-6, z:5, wall:4, does:"Not for sale." }
+];
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151c);
+scene.fog = new THREE.Fog(0x12151c, 8, 28);
+const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 60);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.prepend(renderer.domElement);
+scene.add(new THREE.AmbientLight(0x9aa3b5, 0.8));
+const lamp = new THREE.PointLight(0xffb15a, 4, 16);
+lamp.position.set(0, 4, 0);
+scene.add(lamp);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color:0x2a241c }));
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+const meshes = places.map(p => {
+  const m = house(p.wall);
+  m.position.set(p.x, 0, p.z);
+  m.scale.setScalar(0.45);
+  m.userData = p;
+  scene.add(m);
+  return m;
+});
+const player = { x:0, z:0, yaw:0 };
+let joy={x:0,y:0}, look=false, lx=0, selected=null, inside=false;
+const stick=document.getElementById("stick"), knob=document.getElementById("knob");
+stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));
+stick.addEventListener("pointermove", e => {
+  if (!stick.hasPointerCapture(e.pointerId)) return;
+  const r = stick.getBoundingClientRect();
+  joy.x = Math.max(-1, Math.min(1, (e.clientX-r.left-52)/36));
+  joy.y = Math.max(-1, Math.min(1, (e.clientY-r.top-52)/36));
+  knob.style.left = 31+joy.x*26+"px"; knob.style.top = 31+joy.y*26+"px";
+});
+stick.addEventListener("pointerup", () => { joy={x:0,y:0}; knob.style.left="31px"; knob.style.top="31px"; });
+renderer.domElement.addEventListener("pointerdown", e => {
+  look=true; lx=e.clientX;
+  const ray=new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1), camera);
+  const hit=ray.intersectObjects(meshes)[0];
+  if (hit) {
+    selected=hit.object; const p=selected.userData;
+    cname.textContent=p.name; cmeta.textContent=p.kind==="town"?"town place":p.kind; cdoes.textContent=p.does;
+    card.style.display="block"; go.textContent="Go in"; inside=false;
+  }
+});
+addEventListener("pointerup", () => look=false);
+addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX-lx)*0.006; lx=e.clientX; } });
+hide.onclick=()=>{ card.style.display="none"; selected=null; inside=false; where.textContent="Scarlet"; };
+go.onclick=()=>{ if(!selected) return; inside=!inside; where.textContent=inside?selected.userData.name:"Scarlet"; go.textContent=inside?"Go out":"Go in"; cdoes.textContent=inside?"Inside the chunk. The bed is the brown cubes.":selected.userData.does; };
+function loop(){
+  if(!inside){
+    player.x += Math.sin(player.yaw)*-joy.y*0.08 + Math.cos(player.yaw)*joy.x*0.08;
+    player.z += Math.cos(player.yaw)*-joy.y*0.08 - Math.sin(player.yaw)*joy.x*0.08;
+  }
+  const px=inside&&selected?selected.position.x+1.6:player.x;
+  const pz=inside&&selected?selected.position.z+1.2:player.z;
+  camera.position.set(px, 1.5, pz);
+  camera.lookAt(px+Math.sin(player.yaw), 1.4, pz+Math.cos(player.yaw));
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+addEventListener("resize", ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+</script>
+</body>
+</html>
