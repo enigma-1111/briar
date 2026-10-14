@@ -24,7 +24,7 @@
 </style>
 </head>
 <body>
-<div id="hud">SCARLET<br><span id="where">on the cobbles</span></div>
+<div id="hud">SCARLET<br><span id="where">on the cobbles</span><br><span id="job">walk · look · cloak</span></div>
 <div id="cloak"><span id="cloakname">wool</span></div>
 <div id="card">
   <b id="cname"></b>
@@ -184,8 +184,8 @@ cobble.wrapS = cobble.wrapT = THREE.RepeatWrapping;
 cobble.repeat.set(6, 18);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x05070c);
-scene.fog = new THREE.Fog(0x05070c, 5, 20);
+scene.background = new THREE.Color(0x0c140e);
+scene.fog = new THREE.Fog(0x0c140e, 6, 24);
 const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 60);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
@@ -202,11 +202,22 @@ street.rotation.x = -Math.PI / 2;
 scene.add(street);
 const verge = new THREE.Mesh(
   new THREE.PlaneGeometry(14, 36),
-  new THREE.MeshStandardMaterial({ color: 0x10140f, roughness: 0.9 })
+  new THREE.MeshStandardMaterial({ color: 0x1a2a18, roughness: 0.9 })
 );
 verge.rotation.x = -Math.PI / 2;
 verge.position.y = -0.02;
 scene.add(verge);
+const leaf = new THREE.MeshStandardMaterial({ color: 0x243824, roughness: 1 });
+const trunk = new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 1 });
+for (let i = -12; i <= 12; i += 4) {
+  [-5.2, 5.2].forEach(x => {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1.4, 6), trunk);
+    t.position.set(x, 0.7, i);
+    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 6), leaf);
+    crown.position.set(x, 1.7, i);
+    scene.add(t, crown);
+  });
+}
 
 const solids = [];
 const doors = [];
@@ -404,7 +415,12 @@ const hood = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), cloakMat);
 hood.position.y = 1.42;
 const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, 0.08, 7), cloakMat);
 hem.position.y = 0.22;
-walker.add(cloak, hood, hem);
+const armMat = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 0.8 });
+const armL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.08), armMat);
+const armR = armL.clone();
+armL.position.set(-0.28, 0.85, 0);
+armR.position.set(0.28, 0.85, 0);
+walker.add(cloak, hood, hem, armL, armR);
 scene.add(walker);
 const cloakBar = document.getElementById("cloak");
 const cloakName = document.getElementById("cloakname");
@@ -648,8 +664,11 @@ function loop() {
     const glow = d.group.children[4];
     if (glow) glow.intensity = 1.05 + Math.sin(now * 0.004 + d.z) * 0.22;
   });
-  walker.position.set(player.x, 0, player.z);
+  const moving = Math.abs(joy.x) + Math.abs(joy.y) > 0.05;
+  walker.position.set(player.x, moving ? Math.abs(Math.sin(now * 0.012)) * 0.06 : 0, player.z);
   walker.rotation.y = player.yaw;
+  armL.rotation.x = moving ? Math.sin(now * 0.012) * 0.5 : 0;
+  armR.rotation.x = moving ? -Math.sin(now * 0.012) * 0.5 : 0;
   camera.position.set(player.x - fx * 1.35, 1.85, player.z - fz * 1.35);
   camera.lookAt(player.x + fx * 0.6, 1.15, player.z + fz * 0.6);
   renderer.render(scene, camera);
