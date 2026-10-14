@@ -7,31 +7,33 @@
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; background: #100e0c; color: #f4ead8; font: 17px/1.45 Georgia, serif; }
-  main { max-width: 520px; margin: 0 auto; padding: 48px 22px 40px; }
-  h1 { margin: 0; letter-spacing: .22em; font-weight: normal; font-size: 42px; }
-  .town { margin: 8px 0 0; letter-spacing: .14em; color: #e2c27a; font-size: 15px; }
-  p { color: #cbb892; }
+  body { margin: 0; min-height: 100vh; color: #e7efdf; font: 17px/1.45 Georgia, serif;
+    background: radial-gradient(circle at 20% 0%, #1c3324, #0c140e 55%); }
+  main { max-width: 520px; margin: 0 auto; padding: 42px 22px 48px; }
+  h1 { margin: 0; letter-spacing: .22em; font-weight: normal; font-size: 42px; color: #f4ead8; }
+  .town { margin: 8px 0 0; letter-spacing: .14em; color: #8fbf7a; font-size: 15px; }
+  p { color: #c5d4bc; }
   nav { display: grid; gap: 10px; margin-top: 28px; }
-  a.door { display: block; text-decoration: none; color: inherit; border: 1px solid #4a3d28; border-radius: 14px; padding: 16px 16px 14px; background: #1a1612; }
-  a.door b { display: block; letter-spacing: .08em; font-weight: normal; }
-  a.door span { color: #cbb892; font-size: 15px; }
-  a.door:hover { border-color: #e2c27a; }
+  a.door { display: block; text-decoration: none; color: inherit; border: 1px solid #3d5a42; border-radius: 14px; padding: 16px; background: #142018cc; }
+  a.door b { display: block; letter-spacing: .08em; font-weight: normal; color: #f4ead8; }
+  a.door span { color: #a8c4a0; font-size: 15px; }
   .note { margin-top: 28px; font-size: 15px; }
 </style>
 </head>
 <body>
 <main>
   <h1>BRIAR</h1>
-  <p class="town">NORHAM</p>
-  <p>The town door. Scarlet is the only street cut. Nothing is sold yet.</p>
+  <p class="town">NORHAM · IN THE WOOD</p>
+  <p>The town door stands under the oaks. Scarlet is the only street cut. Nothing is sold yet.</p>
   <nav>
-    <a class="door" href="street.html"><b>Street</b><span>Walk Scarlet.</span></a>
+    <a class="door" href="street.html"><b>Street</b><span>Walk Scarlet. The walker wears a cloak.</span></a>
+    <a class="door" href="streetview.html"><b>Street view</b><span>Stand on the cobbles and read the doors.</span></a>
+    <a class="door" href="greenwood.html"><b>Greenwood</b><span>Oaks and a chapel. Not a key.</span></a>
     <a class="door" href="parcels.html"><b>Parcels</b><span>The named doors on Scarlet.</span></a>
     <a class="door" href="map.html"><b>Map</b><span>What is cut, and what is still locked.</span></a>
     <a class="door" href="rules.html"><b>Rules</b><span>How the town speaks.</span></a>
   </nav>
-  <p class="note">Briar is the toll. It is not minted.</p>
+  <p class="note">Briar is the toll. It is not minted. The wood is not for sale.</p>
 </main>
 </body>
 </html>
