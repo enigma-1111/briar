@@ -11,12 +11,15 @@
   button { font: inherit; border: 0; border-radius: 8px; padding: 8px 10px; margin: 8px 6px 0 0; background: #1a140c; color: #fff; }
   #stick { position: fixed; left: 14px; bottom: 14px; width: 100px; height: 100px; border-radius: 50%; background: #fff8; }
   #knob { width: 40px; height: 40px; border-radius: 50%; background: #1a140c; position: absolute; left: 30px; top: 30px; }
+  #lookpad { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; border: 1px dashed rgba(226,194,122,.45); touch-action: none; }
+  @media (max-width: 520px) { #stick { left: 16px !important; right: auto !important; } }
 </style>
 </head>
 <body>
 <div id="lesson" style="position:fixed;left:12px;top:12px;right:12px;background:#fff;border-radius:10px;padding:8px 10px">Voxels cut parcels from the center. The Gate is the center of Norham. A note says the city keeps a tenth. No real swap.</div>
 <div id="card"><b id="cname"></b><div id="cmeta"></div><div id="cdoes"></div>
   <button id="enter">Enter</button><button id="build">Place block</button><button id="hide">Close</button></div>
+<div id="lookpad"></div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
@@ -80,7 +83,7 @@ renderer.domElement.addEventListener("pointerdown", e => {
   card.style.display="block";
 });
 addEventListener("pointerup", () => look=false);
-addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX-lx)*0.005; lx=e.clientX; } });
+addEventListener("pointermove", e => { if (look) { player.yaw += (e.clientX-lx)*0.005; lx=e.clientX; } });
 hide.onclick=()=>card.style.display="none";
 enter.onclick=()=>{ if(selected) cdoes.textContent="You are on the parcel."; };
 build.onclick=()=>{
@@ -91,8 +94,8 @@ build.onclick=()=>{
   cdoes.textContent="Block placed.";
 };
 function loop(){
-  player.x += Math.sin(player.yaw)*-joy.y*0.08 + Math.cos(player.yaw)*joy.x*0.08;
-  player.z += Math.cos(player.yaw)*-joy.y*0.08 - Math.sin(player.yaw)*joy.x*0.08;
+  player.x += Math.sin(player.yaw)*joy.y*0.08 + Math.cos(player.yaw)*-joy.x*0.08;
+  player.z += Math.cos(player.yaw)*joy.y*0.08 + Math.sin(player.yaw)*joy.x*0.08;
   camera.position.set(player.x, 1.7, player.z);
   camera.lookAt(player.x+Math.sin(player.yaw), 1.5, player.z+Math.cos(player.yaw));
   renderer.render(scene, camera);
