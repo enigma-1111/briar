@@ -9,82 +9,178 @@
   canvas { display: block; }
   #hud { position: fixed; left: 14px; top: 12px; z-index: 5; text-shadow: 0 2px 6px #000; pointer-events: none; }
   #hud a { color: #e2c27a; pointer-events: auto; }
-  #card { position: fixed; left: 12px; right: 128px; top: 72px; z-index: 6; display: none; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px; }
-  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 6px 6px 0 0; background: #e2c27a; color: #1a140c; }
-  #stick, #lookpad { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; z-index: 9; touch-action: none; }
+  #card { position: fixed; left: 12px; right: 12px; top: 64px; z-index: 6; display: none; max-height: 42vh; overflow: auto; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px; }
+  button, input { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 6px 6px 0 0; background: #e2c27a; color: #1a140c; }
+  input { background: #1a1612; color: #f4ead8; border: 1px solid #e2c27a; width: 140px; }
+  #stick, #lookpad { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); width: 96px; height: 96px; border-radius: 50%; z-index: 9; touch-action: none; }
   #stick { left: 16px; border: 1px solid rgba(226,194,122,.7); }
   #lookpad { right: 16px; border: 1px dashed rgba(226,194,122,.5); }
-  #knob { width: 42px; height: 42px; border-radius: 50%; background: #e2c27a; position: absolute; left: 31px; top: 31px; }
+  #knob { width: 40px; height: 40px; border-radius: 50%; background: #e2c27a; position: absolute; left: 28px; top: 28px; }
+  #cloaks { position: fixed; right: 12px; top: 12px; z-index: 7; display: flex; gap: 6px; }
+  #cloaks i { width: 16px; height: 16px; border-radius: 50%; display: block; border: 1px solid #1a140c; }
 </style>
 </head>
 <body>
-<div id="hud">SCARLET<br><span id="where">on the cobbles</span><br><a href="index.html">Town</a></div>
-<div id="card"><b id="cname"></b><p id="cdoes"></p><button id="hide">Close</button></div>
+<div id="hud">SCARLET<br><span id="where">on the cobbles</span><br><a href="index.html">Town</a> · <a href="map.html">Map</a> · <a href="rules.html">Rules</a></div>
+<div id="cloaks"></div>
+<div id="card">
+  <b id="cname"></b>
+  <p id="cdoes"></p>
+  <button id="enter">Go in</button>
+  <button id="block">Place one block</button>
+  <button id="bed">Rent a bed</button>
+  <button id="settle">Settle</button>
+  <button id="loft">Loft</button>
+  <input id="good" maxlength="24" placeholder="one good">
+  <button id="list">List for the day</button>
+  <input id="dname" maxlength="24" placeholder="door name">
+  <button id="paint">Name the door</button>
+  <button id="pass">Pass the key</button>
+  <button id="hide">Close</button>
+</div>
 <div id="stick"><div id="knob"></div></div>
 <div id="lookpad"></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+const KEY = "briar.scarlet.blocks.v1", BED = "briar.cup.bed.v1", ROOM = "briar.hearth.rooms.v1";
+const MKT = "briar.market.day.v1", DOORS = "briar.scarlet.doors.v1", CLOAK = "briar.cloak.v1", HANDS = "briar.scarlet.hands.v1";
+const WEEK = 7 * 86400000;
+const CLOAKS = [{ n: "russet", c: 0x8a3a2a }, { n: "moss", c: 0x3d5340 }, { n: "ink", c: 0x1c2436 }, { n: "wool", c: 0xcbb892 }, { n: "wine", c: 0x6a2430 }];
+function load(k, d) { try { return JSON.parse(localStorage.getItem(k) || "") ?? d; } catch (e) { return d; } }
+function save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+function today() { return new Date().toISOString().slice(0, 10); }
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0c140e);
-scene.fog = new THREE.Fog(0x0c140e, 8, 28);
-const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 40);
+scene.fog = new THREE.Fog(0x0c140e, 10, 36);
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 50);
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "low-power" });
-renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(1);
+renderer.setSize(innerWidth, innerHeight);
 document.body.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xb7c4a4, 0x1a2418, 0.9));
-scene.add(new THREE.AmbientLight(0xffe0b0, 0.15));
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(16, 36), new THREE.MeshLambertMaterial({ color: 0x1a2a18 }));
+scene.add(new THREE.HemisphereLight(0xb7c4a4, 0x1a2418, 0.95));
+const outside = new THREE.Group();
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(28, 48), new THREE.MeshLambertMaterial({ color: 0x1a2a18 }));
 ground.rotation.x = -Math.PI / 2;
-const road = new THREE.Mesh(new THREE.PlaneGeometry(6, 34), new THREE.MeshLambertMaterial({ color: 0x3a3328 }));
-road.rotation.x = -Math.PI / 2;
-road.position.y = 0.01;
-scene.add(ground, road);
-const doors = [];
+const road = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 30), new THREE.MeshLambertMaterial({ color: 0x3a3328 }));
+road.rotation.x = -Math.PI / 2; road.position.y = 0.01;
+outside.add(ground, road);
+function oak(x, z) {
+  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.8, 5), new THREE.MeshLambertMaterial({ color: 0x4a3424 }));
+  t.position.set(x, 0.9, z);
+  const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.8, 6, 5), new THREE.MeshLambertMaterial({ color: 0x2f6a34 }));
+  leaf.position.set(x, 1.9, z);
+  outside.add(t, leaf);
+}
+[[-6,-10],[6,-8],[-6.2,6],[6.4,8],[-5,14],[5.5,16]].forEach(([x,z]) => oak(x,z));
+const buildings = [];
 const solids = [];
-function house(x, z, color, name, line) {
+function shell(x, z, color, spec) {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 2.4), new THREE.MeshLambertMaterial({ color }));
-  body.position.y = 1.1;
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(2, 0.8, 4), new THREE.MeshLambertMaterial({ color: 0x1b140f }));
-  roof.position.y = 2.5;
-  roof.rotation.y = Math.PI / 4;
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.08), new THREE.MeshLambertMaterial({ color: 0x2a2118 }));
-  door.position.set(0, 0.5, x > 0 ? -1.22 : 1.22);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.1, 2.6), new THREE.MeshLambertMaterial({ color }));
+  body.position.y = 1.05;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(1.9, 0.7, 4), new THREE.MeshLambertMaterial({ color: 0x1b140f }));
+  roof.position.y = 2.35; roof.rotation.y = Math.PI / 4;
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.46, 1, 0.08), new THREE.MeshLambertMaterial({ color: 0x2a2118 }));
+  door.position.set(0, 0.5, -1.32);
   g.add(body, roof, door);
   g.position.set(x, 0, z);
-  scene.add(g);
-  solids.push({ x, z, w: 1.4, d: 1.3 });
-  doors.push({ x, z: z + (x > 0 ? -1.5 : 1.5), name, line });
+  outside.add(g);
+  solids.push({ x, z, r: 1.35 });
+  buildings.push({ ...spec, x, z, doorZ: z - 1.7, group: g });
 }
-house(-2.8, -8, 0xc4b49a, "Hearth", "Settle and Loft.");
-house(2.8, -4, 0x8a5a48, "Loaf", "Floor and a back room.");
-house(-2.8, 0, 0x6e5344, "The Cup", "Four beds.");
-house(2.8, 4, 0xb7a48c, "Quill", "A counter.");
-house(-2.8, 8, 0x4e4036, "Forge", "Work floor.");
-const lamp = new THREE.PointLight(0xffc98a, 0.8, 12);
-lamp.position.set(0, 3, 0);
-scene.add(lamp);
-const player = { x: 0, z: -11, yaw: 0, pitch: 0 };
+shell(-2.7, -8, 0xc4b49a, { name: "Hearth", kind: "house", line: "Two rooms." });
+shell(2.7, -4, 0x8a5a48, { name: "Loaf", kind: "shop", line: "A counter." });
+shell(-2.7, 0, 0x6e5344, { name: "The Cup", kind: "inn", line: "A hall and beds." });
+shell(2.7, 4, 0xb7a48c, { name: "Quill", kind: "shop", line: "A counter." });
+shell(-2.7, 8, 0x4e4036, { name: "Forge", kind: "workshop", line: "A work floor." });
+shell(2.7, 12, 0x6a6258, { name: "The Count", kind: "bank", line: "A counter. No yield." });
+shell(0, -12, 0x5c564c, { name: "The Gate", kind: "town", line: "The city keeps a tenth. No coin moves." });
+const chapelShell = { name: "Chapel", kind: "chapel", line: "Town wood.", x: 0, z: 18, doorZ: 16.4 };
+buildings.push(chapelShell);
+const chapel = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.2, 3.2), new THREE.MeshLambertMaterial({ color: 0x6a6258 }));
+chapel.position.set(0, 1.1, 18);
+outside.add(chapel);
+solids.push({ x: 0, z: 18, r: 1.6 });
+scene.add(outside);
+function room(kind) {
+  const g = new THREE.Group();
+  const scale = kind === "chapel" ? 10 : kind === "inn" ? 5.5 : kind === "bank" ? 4.5 : 3.2;
+  const W = 2.4 * scale, D = 2.6 * scale, H = kind === "chapel" ? 8 : 3.4;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshLambertMaterial({ color: 0x3a2e24 }));
+  floor.rotation.x = -Math.PI / 2;
+  g.add(floor);
+  const wall = new THREE.MeshLambertMaterial({ color: 0x5c564c });
+  [[0,H/2,-D/2,W,H,0.2],[0,H/2,D/2,W,H,0.2],[-W/2,H/2,0,0.2,H,D],[W/2,H/2,0,0.2,H,D]].forEach(w => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w[3], w[4], w[5]), wall);
+    m.position.set(w[0], w[1], w[2]);
+    g.add(m);
+  });
+  if (kind === "house" || kind === "inn") {
+    [-1, 1].forEach((s, i) => {
+      const bed = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.3, 0.7), new THREE.MeshLambertMaterial({ color: 0x6a2430 }));
+      bed.position.set(s * 1.6, 0.2, 1.2);
+      g.add(bed);
+    });
+  }
+  if (kind === "shop" || kind === "bank") {
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 0.6), new THREE.MeshLambertMaterial({ color: 0x4a3424 }));
+    counter.position.set(0, 0.45, 1.4);
+    g.add(counter);
+  }
+  if (kind === "workshop") {
+    const anvil = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.4), new THREE.MeshLambertMaterial({ color: 0x2a2a2e }));
+    anvil.position.set(0, 0.4, 0.4);
+    g.add(anvil);
+  }
+  if (kind === "chapel") {
+    for (let z = -6; z <= 4; z += 2) [-3, 3].forEach(x => {
+      const pew = new THREE.Mesh(new THREE.BoxGeometry(2, 0.35, 0.4), new THREE.MeshLambertMaterial({ color: 0x4a3424 }));
+      pew.position.set(x, 0.25, z);
+      const fig = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.6, 5), new THREE.MeshLambertMaterial({ color: 0x3d5340 }));
+      fig.position.set(x, 0.7, z);
+      g.add(pew, fig);
+    });
+    const altar = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 0.7), new THREE.MeshLambertMaterial({ color: 0xe2c27a }));
+    altar.position.set(0, 0.4, 8);
+    g.add(altar);
+  }
+  if (kind === "inn") {
+    const keeper = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.8, 6), new THREE.MeshLambertMaterial({ color: 0x8a3a2a }));
+    keeper.position.set(0, 0.6, 2.2);
+    g.add(keeper);
+  }
+  g.visible = false;
+  scene.add(g);
+  return { g, limit: Math.min(W, D) * 0.35 };
+}
+const rooms = {};
+["house","shop","inn","workshop","bank","chapel","town"].forEach(k => rooms[k] = room(k));
+const player = { x: 0, z: -14, yaw: 0, pitch: 0 };
 const cloakMat = new THREE.MeshLambertMaterial({ color: 0xcbb892 });
 const walker = new THREE.Group();
-const cloak = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1, 6), cloakMat);
-cloak.position.y = 0.7;
-const hood = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), cloakMat);
-hood.position.y = 1.25;
-walker.add(cloak, hood);
+walker.add(Object.assign(new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.95, 6), cloakMat), { position: new THREE.Vector3(0, 0.65, 0) }));
+walker.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), cloakMat), { position: new THREE.Vector3(0, 1.2, 0) }));
 scene.add(walker);
-let joy = { x: 0, y: 0 }, look = false, lx = 0, ly = 0, stickOn = false;
+function paintCloak(c) { cloakMat.color.setHex(c.c); save(CLOAK, c.n); }
+const bar = document.getElementById("cloaks");
+CLOAKS.forEach(c => {
+  const i = document.createElement("i");
+  i.style.background = "#" + c.c.toString(16).padStart(6, "0");
+  i.onclick = () => paintCloak(c);
+  bar.appendChild(i);
+});
+paintCloak(CLOAKS.find(c => c.n === localStorage.getItem(CLOAK)) || CLOAKS[3]);
+let joy = { x: 0, y: 0 }, look = false, lx = 0, ly = 0, stickOn = false, inside = null, current = null;
 const stick = document.getElementById("stick"), knob = document.getElementById("knob"), lookpad = document.getElementById("lookpad");
-function resetStick() { stickOn = false; joy = { x: 0, y: 0 }; knob.style.left = "31px"; knob.style.top = "31px"; }
+function resetStick() { stickOn = false; joy = { x: 0, y: 0 }; knob.style.left = "28px"; knob.style.top = "28px"; }
 stick.addEventListener("pointerdown", e => { stickOn = true; stick.setPointerCapture(e.pointerId); });
 stick.addEventListener("pointermove", e => {
   if (!stickOn) return;
   const r = stick.getBoundingClientRect();
-  joy.x = Math.max(-1, Math.min(1, (e.clientX - r.left - 52) / 36));
-  joy.y = Math.max(-1, Math.min(1, (e.clientY - r.top - 52) / 36));
-  knob.style.left = 31 + joy.x * 26 + "px";
-  knob.style.top = 31 + joy.y * 26 + "px";
+  joy.x = Math.max(-1, Math.min(1, (e.clientX - r.left - 48) / 34));
+  joy.y = Math.max(-1, Math.min(1, (e.clientY - r.top - 48) / 34));
+  knob.style.left = 28 + joy.x * 24 + "px";
+  knob.style.top = 28 + joy.y * 24 + "px";
 });
 stick.addEventListener("pointerup", resetStick);
 stick.addEventListener("pointercancel", resetStick);
@@ -98,21 +194,90 @@ lookpad.addEventListener("pointermove", e => {
 function resetLook() { look = false; player.pitch = 0; }
 lookpad.addEventListener("pointerup", resetLook);
 lookpad.addEventListener("pointercancel", resetLook);
+function title(b) { const d = load(DOORS, {}); return d[b.name] || b.name; }
+function showCard(b) {
+  current = b;
+  cname.textContent = title(b);
+  cdoes.textContent = b.line;
+  const key = ["house","shop","inn","workshop"].includes(b.kind);
+  enter.style.display = "inline-block";
+  enter.textContent = inside ? "Go out" : "Go in";
+  block.style.display = key && !inside ? "inline-block" : "none";
+  bed.style.display = b.name === "The Cup" ? "inline-block" : "none";
+  settle.style.display = b.name === "Hearth" ? "inline-block" : "none";
+  loft.style.display = b.name === "Hearth" ? "inline-block" : "none";
+  list.style.display = b.kind === "shop" ? "inline-block" : "none";
+  good.style.display = b.kind === "shop" ? "inline-block" : "none";
+  paint.style.display = key ? "inline-block" : "none";
+  dname.style.display = key ? "inline-block" : "none";
+  pass.style.display = key ? "inline-block" : "none";
+  card.style.display = "block";
+  where.textContent = title(b);
+}
+enter.onclick = () => {
+  if (!current) return;
+  if (inside) {
+    rooms[inside.kind].g.visible = false;
+    outside.visible = true;
+    player.x = current.x; player.z = current.doorZ - 0.6;
+    inside = null;
+    enter.textContent = "Go in";
+    return;
+  }
+  inside = current;
+  outside.visible = false;
+  Object.values(rooms).forEach(r => r.g.visible = false);
+  rooms[current.kind].g.visible = true;
+  player.x = 0; player.z = -1.2; player.yaw = 0;
+  enter.textContent = "Go out";
+};
+block.onclick = () => {
+  if (!current) return;
+  const b = load(KEY, {});
+  b[current.name] = 1; save(KEY, b);
+  cdoes.textContent = "One block on " + current.name + ".";
+};
+bed.onclick = () => { save(BED, { place: "The Cup", until: Date.now() + WEEK }); cdoes.textContent = "A bed for a week. Not the box."; };
+function rent(n) { const b = load(ROOM, {}); b[n] = Date.now() + WEEK; save(ROOM, b); cdoes.textContent = n + " for a week. A room, not the box."; }
+settle.onclick = () => rent("Settle");
+loft.onclick = () => rent("Loft");
+list.onclick = () => {
+  const book = load(MKT, {});
+  if (book.day !== today()) book.day = today(), book.goods = {};
+  book.goods = book.goods || {};
+  book.goods[current.name] = (good.value || "a good").slice(0, 24);
+  save(MKT, book);
+  cdoes.textContent = "Listed for the day.";
+};
+paint.onclick = () => {
+  const clean = (dname.value || "").replace(/[^A-Za-z0-9 '&-]/g, "").trim().slice(0, 24);
+  if (!clean || !current) return;
+  const b = load(DOORS, {}); b[current.name] = clean; save(DOORS, b);
+  cname.textContent = clean;
+};
+pass.onclick = () => { const b = load(HANDS, {}); b[current.name] = ((b[current.name] || 0) + 1) % 3; save(HANDS, b); cdoes.textContent = "Key passed. A renter stays the week."; };
 hide.onclick = () => card.style.display = "none";
-function blocked(x, z) { return solids.some(s => Math.abs(x - s.x) < s.w && Math.abs(z - s.z) < s.d); }
+function blocked(x, z) { return solids.some(s => Math.hypot(x - s.x, z - s.z) < s.r); }
 function loop() {
-  const nx = player.x + Math.sin(player.yaw) * -joy.y * 0.08 + Math.cos(player.yaw) * -joy.x * 0.08;
-  const nz = player.z + Math.cos(player.yaw) * -joy.y * 0.08 + Math.sin(player.yaw) * joy.x * 0.08;
-  if (!blocked(nx, player.z) && Math.abs(nx) < 2.6) player.x = nx;
-  if (!blocked(player.x, nz) && nz > -13 && nz < 12) player.z = nz;
-  const near = doors.find(d => Math.hypot(d.x - player.x, d.z - player.z) < 1.6);
-  if (near) { cname.textContent = near.name; cdoes.textContent = near.line; card.style.display = "block"; where.textContent = near.name; }
-  else if (card.style.display === "block" && !near) { card.style.display = "none"; where.textContent = "on the cobbles"; }
+  const speed = inside ? 0.1 : 0.08;
+  const nx = player.x + Math.sin(player.yaw) * -joy.y * speed + Math.cos(player.yaw) * -joy.x * speed;
+  const nz = player.z + Math.cos(player.yaw) * -joy.y * speed + Math.sin(player.yaw) * joy.x * speed;
+  if (inside) {
+    const lim = rooms[inside.kind].limit;
+    player.x = Math.max(-lim, Math.min(lim, nx));
+    player.z = Math.max(-lim, Math.min(lim, nz));
+  } else {
+    if (!blocked(nx, player.z) && Math.abs(nx) < 8) player.x = nx;
+    if (!blocked(player.x, nz) && nz > -16 && nz < 20) player.z = nz;
+    const near = buildings.find(b => Math.hypot(b.x - player.x, b.doorZ - player.z) < 1.5);
+    if (near) showCard(near);
+    else if (!inside) { card.style.display = "none"; where.textContent = "on the cobbles"; current = null; }
+  }
   walker.position.set(player.x, 0, player.z);
   walker.rotation.y = player.yaw;
   const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
-  camera.position.set(player.x - fx * 2.2, 1.7, player.z - fz * 2.2);
-  camera.lookAt(player.x + fx, 1.2 - player.pitch, player.z + fz);
+  camera.position.set(player.x - fx * 2.1, 1.65, player.z - fz * 2.1);
+  camera.lookAt(player.x + fx, 1.15 - player.pitch, player.z + fz);
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
