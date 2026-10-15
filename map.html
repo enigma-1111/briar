@@ -23,6 +23,12 @@
   <div class="muted" id="meta"></div>
   <p id="line"></p>
   <button id="go">Enter</button>
+  <button id="block" style="display:none">Place one block</button>
+  <button id="bed" style="display:none">Rent a bed</button>
+  <button id="settle" style="display:none">Settle</button>
+  <button id="loft" style="display:none">Loft</button>
+  <input id="dname" maxlength="24" placeholder="paint a door name" style="display:none;width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid #e2c27a;background:#1a1612;color:#f4ead8">
+  <button id="paint" style="display:none">Name the door</button>
   <button class="ghost" id="close">Back to the map</button>
 </div>
 <script type="module">
@@ -118,8 +124,62 @@ renderer.domElement.addEventListener("click", e => {
   go.disabled = p.kind !== "door" && p.kind !== "wood" && p.kind !== "stall" && p.kind !== "locked";
   go.textContent = p.kind === "door" ? "Walk Scarlet" : p.kind === "wood" ? "Walk the Greenwood" : p.kind === "stall" ? "Walk the stalls" : p.kind === "locked" ? "Look down the street" : (p.name === "The Gate" ? "Note only" : "Locked");
   sheet.classList.add("open");
+  showActs();
 });
 close.onclick = () => sheet.classList.remove("open");
+const KEY = "briar.scarlet.blocks.v1";
+const BED = "briar.cup.bed.v1";
+const ROOM = "briar.hearth.rooms.v1";
+const DOORS = "briar.scarlet.doors.v1";
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+const KEYS = ["Hearth", "Loaf", "The Cup", "Quill", "Forge"];
+function book(k) { try { return JSON.parse(localStorage.getItem(k) || "{}"); } catch (e) { return {}; } }
+function isKey(n) { return KEYS.indexOf(n) !== -1; }
+function showActs() {
+  const door = picked && picked.kind === "door" && isKey(picked.name);
+  block.style.display = door ? "block" : "none";
+  bed.style.display = picked && picked.name === "The Cup" ? "block" : "none";
+  settle.style.display = picked && picked.name === "Hearth" ? "block" : "none";
+  loft.style.display = picked && picked.name === "Hearth" ? "block" : "none";
+  dname.style.display = door ? "block" : "none";
+  paint.style.display = door ? "block" : "none";
+  if (door && book(KEY)[picked.name]) block.textContent = "Block set";
+  else block.textContent = "Place one block";
+}
+block.onclick = () => {
+  if (!picked || !isKey(picked.name)) return;
+  const b = book(KEY);
+  if (b[picked.name]) { line.textContent = "One block already sits on " + picked.name + "."; return; }
+  b[picked.name] = 1;
+  localStorage.setItem(KEY, JSON.stringify(b));
+  line.textContent = "One block placed on " + picked.name + ". Saved on this phone.";
+  showActs();
+};
+bed.onclick = () => {
+  const held = book(BED);
+  if (held.until && held.until > Date.now()) { line.textContent = "A bed is already held."; return; }
+  localStorage.setItem(BED, JSON.stringify({ place: "The Cup", until: Date.now() + WEEK }));
+  line.textContent = "A bed at the Cup for a week. Not the box.";
+};
+function rent(room) {
+  const b = book(ROOM);
+  if (b[room] && b[room] > Date.now()) { line.textContent = room + " is already held."; return; }
+  b[room] = Date.now() + WEEK;
+  localStorage.setItem(ROOM, JSON.stringify(b));
+  line.textContent = room + " for a week. A room, not the box.";
+}
+settle.onclick = () => rent("Settle");
+loft.onclick = () => rent("Loft");
+paint.onclick = () => {
+  if (!picked || !isKey(picked.name)) return;
+  const clean = (dname.value || "").replace(/[^A-Za-z0-9 '&-]/g, "").trim().slice(0, 24);
+  if (!clean) return;
+  const b = book(DOORS);
+  b[picked.name] = clean;
+  localStorage.setItem(DOORS, JSON.stringify(b));
+  name.textContent = clean;
+  line.textContent = "Painted. The key stays " + picked.name + ".";
+};
 go.onclick = () => {
   if (go.disabled || !picked) return;
   if (picked.kind === "wood") location.href = "greenwood.html";
