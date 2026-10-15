@@ -5,448 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Scarlet — Norham</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #07080c; overflow: hidden; touch-action: none; color: #f4ead8; font: 16px Georgia, serif; }
+  html, body { margin: 0; height: 100%; background: #0c140e; overflow: hidden; touch-action: none; color: #f4ead8; font: 16px Georgia, serif; }
   canvas { display: block; }
-  #hud { position: fixed; left: 14px; top: 12px; text-shadow: 0 2px 6px #000; pointer-events: none; }
-  #cloak { position: fixed; right: 12px; top: 12px; z-index: 5; display: flex; gap: 6px; align-items: center; }
-  #cloak span { font-size: 13px; letter-spacing: .06em; text-shadow: 0 2px 6px #000; }
-  #cloak button { width: 22px; height: 22px; padding: 0; margin: 0; border-radius: 50%; border: 2px solid #1a140c; }
-  #card { position: fixed; left: 12px; right: 12px; bottom: calc(132px + env(safe-area-inset-bottom)); z-index: 6; display: none; max-height: calc(100dvh - 168px - env(safe-area-inset-bottom)); overflow-y: auto; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px 14px; }
-  #card p { margin: 6px 0 10px; color: #e8dcc4; }
-  button, #good { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 0 8px 8px 0; background: #e2c27a; color: #1a140c; }
-  #good { display: none; width: 160px; max-width: 100%; background: #1a1612; color: #f4ead8; border: 1px solid #e2c27a; }
-  #stick { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 9; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); touch-action: none; }
+  #hud { position: fixed; left: 14px; top: 12px; z-index: 5; text-shadow: 0 2px 6px #000; pointer-events: none; }
+  #hud a { color: #e2c27a; pointer-events: auto; }
+  #card { position: fixed; left: 12px; right: 128px; top: 72px; z-index: 6; display: none; background: #14120ef2; border: 1px solid #e2c27a; border-radius: 14px; padding: 12px; }
+  button { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 6px 6px 0 0; background: #e2c27a; color: #1a140c; }
+  #stick, #lookpad { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; z-index: 9; touch-action: none; }
+  #stick { left: 16px; border: 1px solid rgba(226,194,122,.7); }
+  #lookpad { right: 16px; border: 1px dashed rgba(226,194,122,.5); }
   #knob { width: 42px; height: 42px; border-radius: 50%; background: #e2c27a; position: absolute; left: 31px; top: 31px; }
-  #lookpad { z-index: 9; }
-  @media (max-width: 520px) {
-    #stick { left: auto; right: 16px; }
-    #card { bottom: calc(136px + env(safe-area-inset-bottom)); }
-  }
-  #lookpad { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; border: 1px dashed rgba(226,194,122,.45); touch-action: none; }
-  @media (max-width: 520px) { #stick { left: 16px !important; right: auto !important; } }
 </style>
 </head>
 <body>
-<div id="hud">SCARLET<br><span id="where">on the cobbles</span><br><span id="job">walk · look · cloak</span></div>
-<div id="cloak"><span id="cloakname">wool</span></div>
-<div id="card">
-  <b id="cname"></b>
-  <p id="cdoes"></p>
-  <button id="place">Place one block</button>
-  <button id="bed" style="display:none">Rent a bed</button>
-  <button id="settle" style="display:none">Settle</button>
-  <button id="loft" style="display:none">Loft</button>
-  <input id="good" maxlength="32" placeholder="one good">
-  <button id="list" style="display:none">List for the day</button>
-  <input id="dname" maxlength="24" placeholder="paint a door name" style="display:none">
-  <button id="paint" style="display:none">Name the door</button>
-  <button id="carry" style="display:none">Note the week</button>
-  <button id="pass" style="display:none">Pass the key</button>
-  <button id="hide">Close</button>
-</div>
-<div id="lookpad"></div>
+<div id="hud">SCARLET<br><span id="where">on the cobbles</span><br><a href="index.html">Town</a></div>
+<div id="card"><b id="cname"></b><p id="cdoes"></p><button id="hide">Close</button></div>
 <div id="stick"><div id="knob"></div></div>
+<div id="lookpad"></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-
-const KEY = "briar.scarlet.blocks.v1";
-const BED = "briar.cup.bed.v1";
-const ROOM = "briar.hearth.rooms.v1";
-const MKT = "briar.market.day.v1";
-const CARRY = "briar.scarlet.carry.v1";
-const HANDS = "briar.scarlet.hands.v1";
-const DOORS = "briar.scarlet.doors.v1";
-const CLOAK = "briar.cloak.v1";
-const CLOAKS = [
-  { name: "russet", color: 0x8a3a2a },
-  { name: "moss", color: 0x3d5340 },
-  { name: "ink", color: 0x1c2436 },
-  { name: "wool", color: 0xcbb892 },
-  { name: "wine", color: 0x6a2430 }
-];
-function cloakPick() {
-  const n = localStorage.getItem(CLOAK);
-  return CLOAKS.find(c => c.name === n) || CLOAKS[3];
-}
-const WEEK = 7 * 24 * 60 * 60 * 1000;
-const NEXT = ["the clerk", "a walker", "another walker"];
-const KEYS = ["Hearth", "Loaf", "The Cup", "Quill", "Forge"];
-const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
-function today() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-}
-function marketBook() {
-  try {
-    const b = JSON.parse(localStorage.getItem(MKT) || "null");
-    if (!b || b.day !== today() || !b.goods) return { day: today(), goods: {} };
-    return b;
-  } catch (e) { return { day: today(), goods: {} }; }
-}
-function listed(name) {
-  const g = marketBook().goods[name];
-  return g ? String(g).slice(0, 32) : "";
-}
-function stallLine(name) {
-  const g = listed(name);
-  return g
-    ? ("Listed today: " + g + ". Not a parcel. Clears at midnight.")
-    : "Empty board. List one good for the day. Not a parcel.";
-}
-function bedHeld() {
-  try {
-    const b = JSON.parse(localStorage.getItem(BED) || "null");
-    if (!b || b.place !== "The Cup" || !b.until || b.until < Date.now()) return null;
-    return b;
-  } catch (e) { return null; }
-}
-function bedDays(b) {
-  return Math.max(1, Math.ceil((b.until - Date.now()) / 86400000));
-}
-function roomBook() {
-  try {
-    const b = JSON.parse(localStorage.getItem(ROOM) || "{}");
-    const out = {};
-    ["Settle", "Loft"].forEach(n => { if (b[n] && b[n] > Date.now()) out[n] = b[n]; });
-    return out;
-  } catch (e) { return {}; }
-}
-function roomDays(until) {
-  return Math.max(1, Math.ceil((until - Date.now()) / 86400000));
-}
-function paintRooms() {
-  const book = roomBook();
-  settle.textContent = book.Settle ? ("Settle · " + roomDays(book.Settle) + "d") : "Settle";
-  loft.textContent = book.Loft ? ("Loft · " + roomDays(book.Loft) + "d") : "Loft";
-}
-function hands() {
-  try { return JSON.parse(localStorage.getItem(HANDS) || "{}"); } catch (e) { return {}; }
-}
-function handWho(name) {
-  const book = hands();
-  return (book[name] && book[name].who) || "the town";
-}
-function stayBits(name) {
-  const bits = [];
-  if (name === "The Cup") {
-    const b = bedHeld();
-    if (b) bits.push("Bed renter stays · " + bedDays(b) + "d");
-  }
-  if (name === "Hearth") {
-    const book = roomBook();
-    ["Settle", "Loft"].forEach(n => { if (book[n]) bits.push(n + " stays · " + roomDays(book[n]) + "d"); });
-  }
-  return bits;
-}
-function stayLine(name) {
-  if (!isKey(name)) return "";
-  const who = handWho(name);
-  const bits = stayBits(name);
-  let line = " Key with " + who + ".";
-  if (who !== "the town") {
-    line += bits.length
-      ? " Hands changed. " + bits.join(". ") + ". The renter stays until the week ends."
-      : " Hands changed. No renter on the week.";
-  } else if (bits.length) {
-    line += " " + bits.join(". ") + ". Until the week ends.";
-  }
-  return line;
-}
-const gold = new THREE.MeshStandardMaterial({ color: 0xe2c27a, roughness: 0.45 });
-
-const cob = document.createElement("canvas");
-cob.width = cob.height = 256;
-const cg = cob.getContext("2d");
-cg.fillStyle = "#141210";
-cg.fillRect(0, 0, 256, 256);
-for (let i = 0; i < 90; i++) {
-  const x = (i * 47) % 256;
-  const y = (i * 29) % 256;
-  const w = 22 + (i % 5) * 4;
-  const h = 16 + (i % 4) * 3;
-  const wet = 28 + (i % 6) * 4;
-  cg.fillStyle = `rgb(${wet + 8},${wet + 6},${wet + 4})`;
-  cg.beginPath();
-  cg.ellipse(x, y, w / 2, h / 2, (i % 5) * 0.2, 0, 7);
-  cg.fill();
-  cg.strokeStyle = "#0c0b0a";
-  cg.lineWidth = 2;
-  cg.stroke();
-  cg.strokeStyle = "rgba(90,110,130,.28)";
-  cg.lineWidth = 1;
-  cg.beginPath();
-  cg.moveTo(x - w * 0.28, y - h * 0.12);
-  cg.lineTo(x + w * 0.22, y - h * 0.22);
-  cg.stroke();
-}
-cg.fillStyle = "rgba(70,90,110,.12)";
-for (let s = 0; s < 5; s++) {
-  cg.fillRect(8 + s * 48, 20 + s * 30, 18, 180);
-}
-const cobble = new THREE.CanvasTexture(cob);
-cobble.wrapS = cobble.wrapT = THREE.RepeatWrapping;
-cobble.repeat.set(6, 18);
-
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0c140e);
-scene.fog = new THREE.Fog(0x0c140e, 6, 24);
-const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 60);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+scene.fog = new THREE.Fog(0x0c140e, 8, 28);
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 40);
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "low-power" });
 renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(1);
 document.body.prepend(renderer.domElement);
-scene.add(new THREE.AmbientLight(0x1c2436, 0.16));
-scene.add(new THREE.HemisphereLight(0x1a2438, 0x0a0908, 0.1));
-
-const street = new THREE.Mesh(
-  new THREE.PlaneGeometry(7.2, 36),
-  new THREE.MeshStandardMaterial({ map: cobble, roughness: 0.38, metalness: 0.14 })
-);
-street.rotation.x = -Math.PI / 2;
-scene.add(street);
-const verge = new THREE.Mesh(
-  new THREE.PlaneGeometry(14, 36),
-  new THREE.MeshStandardMaterial({ color: 0x1a2a18, roughness: 0.9 })
-);
-verge.rotation.x = -Math.PI / 2;
-verge.position.y = -0.02;
-scene.add(verge);
-const leaf = new THREE.MeshStandardMaterial({ color: 0x243824, roughness: 1 });
-const trunk = new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 1 });
-for (let i = -12; i <= 12; i += 4) {
-  [-5.2, 5.2].forEach(x => {
-    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1.4, 6), trunk);
-    t.position.set(x, 0.7, i);
-    const crown = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 6), leaf);
-    crown.position.set(x, 1.7, i);
-    scene.add(t, crown);
-  });
-}
-
-const solids = [];
+scene.add(new THREE.HemisphereLight(0xb7c4a4, 0x1a2418, 0.9));
+scene.add(new THREE.AmbientLight(0xffe0b0, 0.15));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(16, 36), new THREE.MeshLambertMaterial({ color: 0x1a2a18 }));
+ground.rotation.x = -Math.PI / 2;
+const road = new THREE.Mesh(new THREE.PlaneGeometry(6, 34), new THREE.MeshLambertMaterial({ color: 0x3a3328 }));
+road.rotation.x = -Math.PI / 2;
+road.position.y = 0.01;
+scene.add(ground, road);
 const doors = [];
-function addSolid(x, z, w, d) {
-  solids.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
-}
-function putBlock(group) {
-  if (group.getObjectByName("walker-block")) return;
-  const cube = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), gold);
-  cube.name = "walker-block";
-  cube.position.set(0.95, 3.2, 1.15);
-  group.add(cube);
-}
-function house(x, z, face, name, kind, line) {
+const solids = [];
+function house(x, z, color, name, line) {
   const g = new THREE.Group();
-  const plaster = new THREE.MeshStandardMaterial({ color: face, roughness: 0.85 });
-  const timber = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 0.7 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.8, 3.2), plaster);
-  body.position.y = 1.4;
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.16, 3.3), timber);
-  beam.position.y = 2.7;
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.55, 1.15, 4), new THREE.MeshStandardMaterial({ color: 0x1b140f }));
-  roof.position.y = 3.5;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 2.4), new THREE.MeshLambertMaterial({ color }));
+  body.position.y = 1.1;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(2, 0.8, 4), new THREE.MeshLambertMaterial({ color: 0x1b140f }));
+  roof.position.y = 2.5;
   roof.rotation.y = Math.PI / 4;
-  const pane = new THREE.MeshBasicMaterial({ color: 0xffb15a });
-  const win = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.62), pane);
-  win.position.set(0.78, 1.72, 1.62);
-  const win2 = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.5), pane);
-  win2.position.set(-0.22, 1.78, 1.62);
-  const hearth = new THREE.PointLight(0xff9a42, 1.1, 5.2, 2);
-  hearth.position.set(0.28, 1.7, 2.05);
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.25, 0.12), timber);
-  door.position.set(-0.45, 0.64, 1.66);
-  g.add(body, beam, roof, win, win2, hearth, door);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.08), new THREE.MeshLambertMaterial({ color: 0x2a2118 }));
+  door.position.set(0, 0.5, x > 0 ? -1.22 : 1.22);
+  g.add(body, roof, door);
   g.position.set(x, 0, z);
-  if (x > 0) g.rotation.y = Math.PI;
   scene.add(g);
-  addSolid(x, z, 3.4, 3.2);
-  const lamp = new THREE.PointLight(0xffb15a, 1.6, 8);
-  const doorZ = x > 0 ? z - 1.85 : z + 1.85;
-  lamp.position.set(x, 2.3, doorZ);
-  scene.add(lamp);
-  if (saved[name]) putBlock(g);
-  doors.push({ x, z: doorZ, name, kind, line, group: g });
+  solids.push({ x, z, w: 1.4, d: 1.3 });
+  doors.push({ x, z: z + (x > 0 ? -1.5 : 1.5), name, line });
 }
-house(-3.4, -8, 0xc4b49a, "Hearth", "house", "Two rooms: Settle and Loft. A week rent. The box stays with the key.");
-house(3.4, -4, 0x8a5a48, "Loaf", "shop", "Floor and a back room. Open. One block.");
-house(-3.4, 0, 0x6e5344, "The Cup", "inn", "Four beds. A week rent. The box stays with the key.");
-house(3.4, 4, 0xb7a48c, "Quill", "shop", "A counter. Open. One block.");
-house(-3.4, 8, 0x4e4036, "Forge", "workshop", "Work floor. Open. One block.");
-house(3.4, 12, 0x7a4038, "Last Door", "inn", "Five beds. Open. The end of Scarlet.");
-
-function hangSign(x, z, faceStreet, label, line) {
-  const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 192;
-  const g2 = c.getContext("2d");
-  g2.fillStyle = "#cbb892";
-  g2.fillRect(0, 0, 512, 192);
-  g2.strokeStyle = "#3a2a18";
-  g2.lineWidth = 16;
-  g2.strokeRect(10, 10, 492, 172);
-  g2.fillStyle = "#1c140c";
-  g2.font = label.length > 10 ? "52px Georgia" : "64px Georgia";
-  g2.textAlign = "center";
-  g2.textBaseline = "middle";
-  g2.fillText(label, 256, 100);
-  const tex = new THREE.CanvasTexture(c);
-  const board = new THREE.Mesh(
-    new THREE.BoxGeometry(1.45, 0.5, 0.06),
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.78 })
-  );
-  const iron = new THREE.MeshStandardMaterial({ color: 0x2c2a28, metalness: 0.35, roughness: 0.55 });
-  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.85), iron);
-  arm.position.set(0, 0.38, faceStreet > 0 ? -0.4 : 0.4);
-  const hook = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.55, 0.07), iron);
-  hook.position.set(0, 0.62, faceStreet > 0 ? -0.78 : 0.78);
-  const grp = new THREE.Group();
-  grp.add(board, arm, hook);
-  grp.position.set(x, 2.45, z);
-  grp.rotation.y = faceStreet > 0 ? Math.PI / 2 : -Math.PI / 2;
-  scene.add(grp);
-  doors.push({ x, z, name: label, kind: "sign", line, group: grp });
-}
-hangSign(-2.05, -1.1, 1, "Inn", "Painted board over The Cup. A bed, not the box.");
-hangSign(2.05, -5.1, -1, "Sweep", "A broom on the board. Not a house.");
-hangSign(-2.05, 7.2, 1, "Crooked Crow", "Old tavern board. The bird is painted, not a person.");
-hangSign(2.05, 11.2, -1, "Last Lamp", "Last lit board on Scarlet. Not a key.");
-hangSign(2.05, 3.1, -1, "Clerk", "A desk board by Quill. The counter stays the shop.");
-
-function streetLamp(x, z, n) {
-  const iron = new THREE.MeshStandardMaterial({ color: 0x2a2622, metalness: 0.4, roughness: 0.5 });
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.08, 2.2, 8), iron);
-  post.position.y = 1.1;
-  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.38), iron);
-  arm.position.set(0, 2.12, x > 0 ? -0.16 : 0.16);
-  const cage = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.3, 0.26), iron);
-  cage.position.set(0, 2.1, x > 0 ? -0.34 : 0.34);
-  const glass = new THREE.Mesh(
-    new THREE.SphereGeometry(0.09, 10, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffc98a })
-  );
-  glass.position.copy(cage.position);
-  const glow = new THREE.PointLight(0xffb15a, 1.25, 7.2);
-  glow.position.copy(glass.position);
-  const grp = new THREE.Group();
-  grp.add(post, arm, cage, glass, glow);
-  grp.position.set(x, 0, z);
-  scene.add(grp);
-  doors.push({
-    x, z,
-    name: "Lamp " + n,
-    kind: "lamp",
-    line: "Warm light on Scarlet. A lamp is not a key.",
-    group: grp
-  });
-}
-[-12, -6, 0, 6, 12].forEach((z, i) => {
-  streetLamp(-2.4, z, i * 2 + 1);
-  streetLamp(2.4, z, i * 2 + 2);
-});
-
-function stall(x, z, name, cloth) {
-  const wood = new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 0.8 });
-  const table = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.72, 0.7), wood);
-  table.position.y = 0.36;
-  const awning = new THREE.Mesh(
-    new THREE.BoxGeometry(1.28, 0.08, 0.86),
-    new THREE.MeshStandardMaterial({ color: cloth, roughness: 0.7 })
-  );
-  awning.position.set(0, 1.55, 0.05);
-  const poleL = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.2, 6), wood);
-  poleL.position.set(-0.52, 0.95, -0.28);
-  const poleR = poleL.clone();
-  poleR.position.x = 0.52;
-  const c = document.createElement("canvas");
-  c.width = 256;
-  c.height = 96;
-  const g2 = c.getContext("2d");
-  g2.fillStyle = "#efe2c4";
-  g2.fillRect(0, 0, 256, 96);
-  g2.fillStyle = "#1c140c";
-  g2.font = "36px Georgia";
-  g2.textAlign = "center";
-  g2.textBaseline = "middle";
-  g2.fillText(name, 128, 48);
-  const board = new THREE.Mesh(
-    new THREE.BoxGeometry(0.72, 0.28, 0.04),
-    new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(c), roughness: 0.8 })
-  );
-  board.position.set(0, 1.15, 0.36);
-  const grp = new THREE.Group();
-  grp.add(table, awning, poleL, poleR, board);
-  grp.position.set(x, 0, z);
-  scene.add(grp);
-  addSolid(x, z, 1.15, 0.7);
-  doors.push({
-    x, z: z + 0.55,
-    name,
-    kind: "stall",
-    line: stallLine(name),
-    group: grp
-  });
-}
-[
-  ["Apple", 0xc45a3a],
-  ["Cloth", 0x3a5a78],
-  ["Salt", 0xd8d0c4],
-  ["Wick", 0xc4a24a]
-].forEach((s, i) => stall(-1.65 + i * 1.1, -13.4, s[0], s[1]));
-
-const well = new THREE.Group();
-const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.82, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x6a7268 }));
-rim.position.y = 0.35;
-well.add(rim);
-well.position.set(0, 0, 14.4);
-scene.add(well);
-doors.push({ x: 0, z: 13.3, name: "Well", kind: "town", line: "Town water. Not a house. The block is refused.", group: well });
-
-addSolid(0, -16.2, 8, 0.6);
-addSolid(0, 16.2, 8, 0.6);
-const endMat = new THREE.MeshStandardMaterial({ color: 0x2c261e });
-[[-16.2], [16.2]].forEach(([z]) => {
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(8, 1.6, 0.4), endMat);
-  wall.position.set(0, 0.8, z);
-  scene.add(wall);
-});
-
-const player = { x: 0, z: -11.2, yaw: Math.PI, pitch: 0 };
-const cloakMat = new THREE.MeshStandardMaterial({ color: cloakPick().color, roughness: 0.82 });
+house(-2.8, -8, 0xc4b49a, "Hearth", "Settle and Loft.");
+house(2.8, -4, 0x8a5a48, "Loaf", "Floor and a back room.");
+house(-2.8, 0, 0x6e5344, "The Cup", "Four beds.");
+house(2.8, 4, 0xb7a48c, "Quill", "A counter.");
+house(-2.8, 8, 0x4e4036, "Forge", "Work floor.");
+const lamp = new THREE.PointLight(0xffc98a, 0.8, 12);
+lamp.position.set(0, 3, 0);
+scene.add(lamp);
+const player = { x: 0, z: -11, yaw: 0, pitch: 0 };
+const cloakMat = new THREE.MeshLambertMaterial({ color: 0xcbb892 });
 const walker = new THREE.Group();
-const cloak = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.15, 7), cloakMat);
-cloak.position.y = 0.78;
-const hood = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), cloakMat);
-hood.position.y = 1.42;
-const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, 0.08, 7), cloakMat);
-hem.position.y = 0.22;
-const armMat = new THREE.MeshStandardMaterial({ color: 0x2a2118, roughness: 0.8 });
-const armL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.08), armMat);
-const armR = armL.clone();
-armL.position.set(-0.28, 0.85, 0);
-armR.position.set(0.28, 0.85, 0);
-walker.add(cloak, hood, hem, armL, armR);
+const cloak = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1, 6), cloakMat);
+cloak.position.y = 0.7;
+const hood = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), cloakMat);
+hood.position.y = 1.25;
+walker.add(cloak, hood);
 scene.add(walker);
-const cloakBar = document.getElementById("cloak");
-const cloakName = document.getElementById("cloakname");
-function paintCloak(pick) {
-  cloakMat.color.setHex(pick.color);
-  cloakName.textContent = pick.name;
-  localStorage.setItem(CLOAK, pick.name);
-}
-paintCloak(cloakPick());
-CLOAKS.forEach(c => {
-  const b = document.createElement("button");
-  b.style.background = "#" + c.color.toString(16).padStart(6, "0");
-  b.setAttribute("aria-label", c.name);
-  b.addEventListener("pointerdown", e => e.stopPropagation());
-  b.addEventListener("click", () => paintCloak(c));
-  cloakBar.appendChild(b);
-});
-const R = 0.38;
-let joy = { x: 0, y: 0 }, look = false, lx = 0, stickOn = false, current = null;
-const stick = document.getElementById("stick"), knob = document.getElementById("knob");
+let joy = { x: 0, y: 0 }, look = false, lx = 0, ly = 0, stickOn = false;
+const stick = document.getElementById("stick"), knob = document.getElementById("knob"), lookpad = document.getElementById("lookpad");
 function resetStick() { stickOn = false; joy = { x: 0, y: 0 }; knob.style.left = "31px"; knob.style.top = "31px"; }
-stick.addEventListener("pointerdown", e => { stickOn = true; stick.setPointerCapture(e.pointerId); e.stopPropagation(); });
+stick.addEventListener("pointerdown", e => { stickOn = true; stick.setPointerCapture(e.pointerId); });
 stick.addEventListener("pointermove", e => {
   if (!stickOn) return;
   const r = stick.getBoundingClientRect();
@@ -457,243 +88,36 @@ stick.addEventListener("pointermove", e => {
 });
 stick.addEventListener("pointerup", resetStick);
 stick.addEventListener("pointercancel", resetStick);
-const lookpad = document.getElementById("lookpad");
-let ly = 0;
-lookpad.addEventListener("pointerdown", e => { look = true; lx = e.clientX; ly = e.clientY; lookpad.setPointerCapture(e.pointerId); e.stopPropagation(); });
+lookpad.addEventListener("pointerdown", e => { look = true; lx = e.clientX; ly = e.clientY; lookpad.setPointerCapture(e.pointerId); });
 lookpad.addEventListener("pointermove", e => {
   if (!look) return;
   player.yaw += (e.clientX - lx) * 0.008;
-  player.pitch = Math.max(-0.7, Math.min(0.7, (player.pitch || 0) + (e.clientY - ly) * 0.005));
+  player.pitch = Math.max(-0.6, Math.min(0.6, player.pitch + (e.clientY - ly) * 0.005));
   lx = e.clientX; ly = e.clientY;
 });
-lookpad.addEventListener("pointerup", () => { look = false; player.pitch = 0; });
-lookpad.addEventListener("pointercancel", () => { look = false; player.pitch = 0; });
-
-function blocked(x, z) {
-  return solids.some(s => x > s.minX - R && x < s.maxX + R && z > s.minZ - R && z < s.maxZ + R);
-}
-function moveAxis(nx, nz) {
-  if (!blocked(nx, player.z) && Math.abs(nx) < 3.15) player.x = nx;
-  if (!blocked(player.x, nz) && nz > -15.4 && nz < 15.4) player.z = nz;
-}
-function refused(kind) { return kind === "town" || kind === "sign" || kind === "lamp" || kind === "stall"; }
-place.onclick = () => {
-  if (!current) return;
-  card.dataset.lock = "1";
-  if (refused(current.kind)) {
-    cdoes.textContent = current.kind === "stall"
-      ? "A day stall. Not a parcel. The block is refused."
-      : current.kind === "sign"
-        ? "A hanging board. The block is refused."
-        : current.kind === "lamp"
-          ? "A lamp. Not a key. The block is refused."
-          : "Town parcel. The block is refused.";
-    return;
-  }
-  if (saved[current.name]) {
-    cdoes.textContent = "One block already sits on " + current.name + ".";
-    return;
-  }
-  putBlock(current.group);
-  saved[current.name] = 1;
-  localStorage.setItem(KEY, JSON.stringify(saved));
-  restCarry(current.name);
-  cdoes.textContent = "One block placed on " + current.name + ". Occupied. The carry rests. Saved on this browser.";
-};
-function carryBook() {
-  try { return JSON.parse(localStorage.getItem(CARRY) || "{}"); } catch (e) { return {}; }
-}
-function isKey(name) { return KEYS.indexOf(name) !== -1; }
-function doorBook() {
-  try { return JSON.parse(localStorage.getItem(DOORS) || "{}"); } catch (e) { return {}; }
-}
-function cleanName(raw) {
-  return (raw || "").replace(/[^A-Za-z0-9 '&-]/g, "").replace(/\s+/g, " ").trim().slice(0, 24);
-}
-function painted(name) {
-  if (!isKey(name)) return "";
-  return doorBook()[name] || "";
-}
-function doorTitle(name) {
-  const paint = painted(name);
-  return paint ? paint : name;
-}
-function restCarry(name) {
-  const book = carryBook();
-  if (book[name]) { delete book[name]; localStorage.setItem(CARRY, JSON.stringify(book)); }
-}
-function carryDue(name) {
-  if (!isKey(name) || saved[name]) return 0;
-  const book = carryBook();
-  if (!book[name] || !book[name].since) {
-    book[name] = { since: Date.now(), noted: 0 };
-    localStorage.setItem(CARRY, JSON.stringify(book));
-  }
-  return Math.max(1, Math.ceil((Date.now() - book[name].since) / WEEK));
-}
-function carryLine(name) {
-  if (!isKey(name)) return "";
-  if (saved[name]) return " Occupied. The carry rests.";
-  const due = carryDue(name);
-  return " Empty key. Carrying fee: one wick a week. Due: " + due + ". Nothing is taken.";
-}
-function rentRoom(name) {
-  if (!current || current.name !== "Hearth") return;
-  card.dataset.lock = "1";
-  const book = roomBook();
-  if (book[name]) {
-    cdoes.textContent = name + " already held for " + roomDays(book[name]) + " day" + (roomDays(book[name]) === 1 ? "" : "s") + ". The box is not yours.";
-    return;
-  }
-  book[name] = Date.now() + WEEK;
-  localStorage.setItem(ROOM, JSON.stringify(book));
-  cdoes.textContent = name + " rented for a week. A room, not the box. Saved on this browser.";
-  paintRooms();
-}
-settle.onclick = () => rentRoom("Settle");
-loft.onclick = () => rentRoom("Loft");
-bed.onclick = () => {
-  if (!current || current.name !== "The Cup") return;
-  card.dataset.lock = "1";
-  const held = bedHeld();
-  if (held) {
-    cdoes.textContent = "Bed already held for " + bedDays(held) + " day" + (bedDays(held) === 1 ? "" : "s") + ". The box is not yours.";
-    return;
-  }
-  localStorage.setItem(BED, JSON.stringify({ place: "The Cup", until: Date.now() + WEEK }));
-  cdoes.textContent = "Bed rented for a week. Saved on this browser. The box stays closed.";
-  bed.textContent = "Bed held · 7d";
-};
-list.onclick = () => {
-  if (!current || current.kind !== "stall") return;
-  card.dataset.lock = "1";
-  const good = (good.value || "").trim().slice(0, 32);
-  if (!good) {
-    cdoes.textContent = "Write one good. It lasts the day. Not a parcel.";
-    return;
-  }
-  const b = marketBook();
-  b.day = today();
-  b.goods[current.name] = good;
-  localStorage.setItem(MKT, JSON.stringify(b));
-  current.line = stallLine(current.name);
-  cdoes.textContent = current.name + " lists " + good + " today. Saved on this browser.";
-  good.value = "";
-};
-paint.addEventListener("click", () => {
-  if (!current || !isKey(current.name)) {
-    cdoes.textContent = "Town places keep the name the town gave them.";
-    return;
-  }
-  card.dataset.lock = "1";
-  const paint = cleanName(dname.value);
-  if (!paint) {
-    cdoes.textContent = "Write a door name. The key stays " + current.name + ".";
-    return;
-  }
-  const book = doorBook();
-  book[current.name] = paint;
-  localStorage.setItem(DOORS, JSON.stringify(book));
-  cname.textContent = paint;
-  cdoes.textContent = "Door painted " + paint + ". The key stays " + current.name + ". Saved on this browser.";
-  dname.value = "";
-});
-pass.addEventListener("click", () => {
-  if (!current || !isKey(current.name)) return;
-  card.dataset.lock = "1";
-  const book = hands();
-  const n = ((book[current.name] && book[current.name].n) || 0) + 1;
-  const who = NEXT[(n - 1) % NEXT.length];
-  book[current.name] = { who, n };
-  localStorage.setItem(HANDS, JSON.stringify(book));
-  const bits = stayBits(current.name);
-  cdoes.textContent = "Key passed to " + who + ". " + (bits.length
-    ? bits.join(". ") + ". The renter stays until the week ends."
-    : "No renter on the week.") + " Saved on this browser.";
-  pass.textContent = "Pass the key · " + who;
-});
-carry.addEventListener("click", () => {
-  if (!current || !isKey(current.name) || saved[current.name]) return;
-  card.dataset.lock = "1";
-  const book = carryBook();
-  const row = book[current.name] || { since: Date.now(), noted: 0 };
-  row.noted = (row.noted || 0) + 1;
-  book[current.name] = row;
-  localStorage.setItem(CARRY, JSON.stringify(book));
-  cdoes.textContent = "Week noted on " + current.name + ". Still nothing taken. Due: " + carryDue(current.name) + ".";
-});
-hide.addEventListener("click", () => { card.dataset.lock = "1"; card.style.display = "none"; });
-
+function resetLook() { look = false; player.pitch = 0; }
+lookpad.addEventListener("pointerup", resetLook);
+lookpad.addEventListener("pointercancel", resetLook);
+hide.onclick = () => card.style.display = "none";
+function blocked(x, z) { return solids.some(s => Math.abs(x - s.x) < s.w && Math.abs(z - s.z) < s.d); }
 function loop() {
   const nx = player.x + Math.sin(player.yaw) * -joy.y * 0.08 + Math.cos(player.yaw) * -joy.x * 0.08;
   const nz = player.z + Math.cos(player.yaw) * -joy.y * 0.08 + Math.sin(player.yaw) * joy.x * 0.08;
-  moveAxis(nx, nz);
-  const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
-  const near = doors.find(d => {
-    const dx = d.x - player.x, dz = d.z - player.z;
-    const dist = Math.hypot(dx, dz);
-    return dist < 1.55 && (dx * fx + dz * fz) > 0.35;
-  });
-  if (near && card.dataset.lock !== "1") {
-    current = near;
-    cname.textContent = doorTitle(near.name);
-    if (near.kind === "stall") near.line = stallLine(near.name);
-    const paint = painted(near.name);
-    cdoes.textContent = near.kind + ". " + (paint ? "Key stays " + near.name + ". " : "") + near.line + carryLine(near.name) + stayLine(near.name);
-    paint.style.display = isKey(near.name) ? "inline-block" : "none";
-    dname.style.display = isKey(near.name) ? "inline-block" : "none";
-    carry.style.display = isKey(near.name) && !saved[near.name] ? "inline-block" : "none";
-    if (isKey(near.name) && !saved[near.name]) carry.textContent = "Note the week · " + carryDue(near.name);
-    pass.style.display = isKey(near.name) ? "inline-block" : "none";
-    if (isKey(near.name)) pass.textContent = "Pass the key · " + handWho(near.name);
-    place.style.display = near.kind === "stall" ? "none" : "inline-block";
-    place.textContent = near.kind === "lamp" ? "Lamp only" : refused(near.kind) ? "Board only" : (saved[near.name] ? "Block set" : "Place one block");
-    bed.style.display = near.name === "The Cup" ? "inline-block" : "none";
-    const hearth = near.name === "Hearth";
-    settle.style.display = hearth ? "inline-block" : "none";
-    loft.style.display = hearth ? "inline-block" : "none";
-    if (hearth) {
-      paintRooms();
-      const book = roomBook();
-      const held = ["Settle", "Loft"].filter(n => book[n]).map(n => n + " · " + roomDays(book[n]) + "d");
-      if (held.length) cdoes.textContent = "house. " + held.join(". ") + ". A room, not the box." + stayLine(near.name);
-    }
-    list.style.display = near.kind === "stall" ? "inline-block" : "none";
-    good.style.display = near.kind === "stall" ? "inline-block" : "none";
-    if (near.name === "The Cup") {
-      const held = bedHeld();
-      bed.textContent = held ? ("Bed held · " + bedDays(held) + "d") : "Rent a bed";
-    }
-    card.style.display = "block";
-    where.textContent = near.name;
-  } else if (!near) {
-    current = null;
-    card.dataset.lock = "0";
-    card.style.display = "none";
-    where.textContent = "on the cobbles";
-  }
-  const now = performance.now();
-  doors.forEach(d => {
-    if (d.kind !== "lamp") return;
-    const glow = d.group.children[4];
-    if (glow) glow.intensity = 1.05 + Math.sin(now * 0.004 + d.z) * 0.22;
-  });
-  const moving = Math.abs(joy.x) + Math.abs(joy.y) > 0.05;
-  walker.position.set(player.x, moving ? Math.abs(Math.sin(now * 0.012)) * 0.06 : 0, player.z);
+  if (!blocked(nx, player.z) && Math.abs(nx) < 2.6) player.x = nx;
+  if (!blocked(player.x, nz) && nz > -13 && nz < 12) player.z = nz;
+  const near = doors.find(d => Math.hypot(d.x - player.x, d.z - player.z) < 1.6);
+  if (near) { cname.textContent = near.name; cdoes.textContent = near.line; card.style.display = "block"; where.textContent = near.name; }
+  else if (card.style.display === "block" && !near) { card.style.display = "none"; where.textContent = "on the cobbles"; }
+  walker.position.set(player.x, 0, player.z);
   walker.rotation.y = player.yaw;
-  armL.rotation.x = moving ? Math.sin(now * 0.012) * 0.5 : 0;
-  armR.rotation.x = moving ? -Math.sin(now * 0.012) * 0.5 : 0;
-  camera.position.set(player.x - fx * 1.35, 1.85, player.z - fz * 1.35);
-  camera.lookAt(player.x + fx * 0.6, 1.15 - (player.pitch || 0) * 1.6, player.z + fz * 0.6);
+  const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
+  camera.position.set(player.x - fx * 2.2, 1.7, player.z - fz * 2.2);
+  camera.lookAt(player.x + fx, 1.2 - player.pitch, player.z + fz);
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
 loop();
-addEventListener("resize", () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
+addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 </script>
 </body>
 </html>
