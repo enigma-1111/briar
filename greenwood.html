@@ -12,11 +12,14 @@
   button { font: inherit; border: 0; border-radius: 999px; padding: 10px 14px; margin-right: 8px; background: #e2c27a; color: #1a140c; }
   #stick { position: fixed; left: 16px; bottom: 16px; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); touch-action: none; }
   #knob { width: 42px; height: 42px; border-radius: 50%; background: #e2c27a; position: absolute; left: 31px; top: 31px; }
+  #lookpad { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; border: 1px dashed rgba(226,194,122,.45); touch-action: none; }
+  @media (max-width: 520px) { #stick { left: 16px !important; right: auto !important; } }
 </style>
 </head>
 <body>
 <div id="hud">CHAPEL</div>
 <div id="card"><button id="enter">Go in</button></div>
+<div id="lookpad"></div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
@@ -141,9 +144,13 @@ stick.addEventListener("pointermove", e => {
   knob.style.top = 31 + joy.y * 26 + "px";
 });
 stick.addEventListener("pointerup", () => { joy = { x: 0, y: 0 }; knob.style.left = "31px"; knob.style.top = "31px"; });
-renderer.domElement.addEventListener("pointerdown", e => { look = true; lx = e.clientX; });
+const lookpad = document.getElementById("lookpad");
+lookpad.addEventListener("pointerdown", e => { look = true; lx = e.clientX; lookpad.setPointerCapture(e.pointerId); e.stopPropagation(); });
+lookpad.addEventListener("pointermove", e => { if (look) { player.yaw += (e.clientX - lx) * 0.008; lx = e.clientX; } });
+lookpad.addEventListener("pointerup", () => look = false);
+renderer.domElement.addEventListener("pointerdown", e => { if (e.clientX > innerWidth * 0.55) { look = true; lx = e.clientX; } });
 addEventListener("pointerup", () => look = false);
-addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX - lx) * 0.006; lx = e.clientX; } });
+addEventListener("pointermove", e => { if (look) { player.yaw += (e.clientX - lx) * 0.006; lx = e.clientX; } });
 enter.onclick = () => {
   inChapel = !inChapel;
   inside.visible = inChapel;
@@ -155,8 +162,8 @@ enter.onclick = () => {
 };
 function loop() {
   const speed = inChapel ? 0.16 : 0.07;
-  player.x += Math.sin(player.yaw) * -joy.y * speed + Math.cos(player.yaw) * joy.x * speed;
-  player.z += Math.cos(player.yaw) * -joy.y * speed - Math.sin(player.yaw) * joy.x * speed;
+  player.x += Math.sin(player.yaw) * joy.y * speed + Math.cos(player.yaw) * -joy.x * speed;
+  player.z += Math.cos(player.yaw) * joy.y * speed + Math.sin(player.yaw) * joy.x * speed;
   if (inChapel) {
     player.x = Math.max(-10, Math.min(10, player.x));
     player.z = Math.max(-14, Math.min(14, player.z));
