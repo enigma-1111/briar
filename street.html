@@ -15,8 +15,9 @@
   #card p { margin: 6px 0 10px; color: #e8dcc4; }
   button, #good { font: inherit; border: 0; border-radius: 999px; padding: 8px 12px; margin: 0 8px 8px 0; background: #e2c27a; color: #1a140c; }
   #good { display: none; width: 160px; max-width: 100%; background: #1a1612; color: #f4ead8; border: 1px solid #e2c27a; }
-  #stick { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 4; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); touch-action: none; }
+  #stick { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 9; width: 104px; height: 104px; border-radius: 50%; border: 1px solid rgba(226,194,122,.6); touch-action: none; }
   #knob { width: 42px; height: 42px; border-radius: 50%; background: #e2c27a; position: absolute; left: 31px; top: 31px; }
+  #lookpad { z-index: 9; }
   @media (max-width: 520px) {
     #stick { left: auto; right: 16px; }
     #card { bottom: calc(136px + env(safe-area-inset-bottom)); }
@@ -442,18 +443,20 @@ CLOAKS.forEach(c => {
   cloakBar.appendChild(b);
 });
 const R = 0.38;
-let joy = { x: 0, y: 0 }, look = false, lx = 0, current = null;
+let joy = { x: 0, y: 0 }, look = false, lx = 0, stickOn = false, current = null;
 const stick = document.getElementById("stick"), knob = document.getElementById("knob");
-stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));
+function resetStick() { stickOn = false; joy = { x: 0, y: 0 }; knob.style.left = "31px"; knob.style.top = "31px"; }
+stick.addEventListener("pointerdown", e => { stickOn = true; stick.setPointerCapture(e.pointerId); e.stopPropagation(); });
 stick.addEventListener("pointermove", e => {
-  if (!stick.hasPointerCapture(e.pointerId)) return;
+  if (!stickOn) return;
   const r = stick.getBoundingClientRect();
   joy.x = Math.max(-1, Math.min(1, (e.clientX - r.left - 52) / 36));
   joy.y = Math.max(-1, Math.min(1, (e.clientY - r.top - 52) / 36));
   knob.style.left = 31 + joy.x * 26 + "px";
   knob.style.top = 31 + joy.y * 26 + "px";
 });
-stick.addEventListener("pointerup", () => { joy = { x: 0, y: 0 }; knob.style.left = "31px"; knob.style.top = "31px"; });
+stick.addEventListener("pointerup", resetStick);
+stick.addEventListener("pointercancel", resetStick);
 const lookpad = document.getElementById("lookpad");
 let ly = 0;
 lookpad.addEventListener("pointerdown", e => { look = true; lx = e.clientX; ly = e.clientY; lookpad.setPointerCapture(e.pointerId); e.stopPropagation(); });
@@ -464,9 +467,7 @@ lookpad.addEventListener("pointermove", e => {
   lx = e.clientX; ly = e.clientY;
 });
 lookpad.addEventListener("pointerup", () => { look = false; player.pitch = 0; });
-renderer.domElement.addEventListener("pointerdown", e => { if (e.clientX > innerWidth * 0.55) { look = true; lx = e.clientX; } });
-addEventListener("pointerup", () => look = false);
-addEventListener("pointermove", e => { if (look) { player.yaw += (e.clientX - lx) * 0.006; lx = e.clientX; } });
+lookpad.addEventListener("pointercancel", () => { look = false; player.pitch = 0; });
 
 function blocked(x, z) {
   return solids.some(s => x > s.minX - R && x < s.maxX + R && z > s.minZ - R && z < s.maxZ + R);
