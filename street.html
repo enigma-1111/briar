@@ -409,7 +409,7 @@ const endMat = new THREE.MeshStandardMaterial({ color: 0x2c261e });
   scene.add(wall);
 });
 
-const player = { x: 0, z: -11.2, yaw: Math.PI };
+const player = { x: 0, z: -11.2, yaw: Math.PI, pitch: 0 };
 const cloakMat = new THREE.MeshStandardMaterial({ color: cloakPick().color, roughness: 0.82 });
 const walker = new THREE.Group();
 const cloak = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.15, 7), cloakMat);
@@ -455,9 +455,15 @@ stick.addEventListener("pointermove", e => {
 });
 stick.addEventListener("pointerup", () => { joy = { x: 0, y: 0 }; knob.style.left = "31px"; knob.style.top = "31px"; });
 const lookpad = document.getElementById("lookpad");
-lookpad.addEventListener("pointerdown", e => { look = true; lx = e.clientX; lookpad.setPointerCapture(e.pointerId); e.stopPropagation(); });
-lookpad.addEventListener("pointermove", e => { if (look) { player.yaw += (e.clientX - lx) * 0.008; lx = e.clientX; } });
-lookpad.addEventListener("pointerup", () => look = false);
+let ly = 0;
+lookpad.addEventListener("pointerdown", e => { look = true; lx = e.clientX; ly = e.clientY; lookpad.setPointerCapture(e.pointerId); e.stopPropagation(); });
+lookpad.addEventListener("pointermove", e => {
+  if (!look) return;
+  player.yaw += (e.clientX - lx) * 0.008;
+  player.pitch = Math.max(-0.7, Math.min(0.7, (player.pitch || 0) + (e.clientY - ly) * 0.005));
+  lx = e.clientX; ly = e.clientY;
+});
+lookpad.addEventListener("pointerup", () => { look = false; player.pitch = 0; });
 renderer.domElement.addEventListener("pointerdown", e => { if (e.clientX > innerWidth * 0.55) { look = true; lx = e.clientX; } });
 addEventListener("pointerup", () => look = false);
 addEventListener("pointermove", e => { if (look) { player.yaw += (e.clientX - lx) * 0.006; lx = e.clientX; } });
@@ -618,8 +624,8 @@ carry.addEventListener("click", () => {
 hide.addEventListener("click", () => { card.dataset.lock = "1"; card.style.display = "none"; });
 
 function loop() {
-  const nx = player.x + Math.sin(player.yaw) * joy.y * 0.08 + Math.cos(player.yaw) * -joy.x * 0.08;
-  const nz = player.z + Math.cos(player.yaw) * joy.y * 0.08 + Math.sin(player.yaw) * joy.x * 0.08;
+  const nx = player.x + Math.sin(player.yaw) * -joy.y * 0.08 + Math.cos(player.yaw) * -joy.x * 0.08;
+  const nz = player.z + Math.cos(player.yaw) * -joy.y * 0.08 + Math.sin(player.yaw) * joy.x * 0.08;
   moveAxis(nx, nz);
   const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
   const near = doors.find(d => {
@@ -677,7 +683,7 @@ function loop() {
   armL.rotation.x = moving ? Math.sin(now * 0.012) * 0.5 : 0;
   armR.rotation.x = moving ? -Math.sin(now * 0.012) * 0.5 : 0;
   camera.position.set(player.x - fx * 1.35, 1.85, player.z - fz * 1.35);
-  camera.lookAt(player.x + fx * 0.6, 1.15, player.z + fz * 0.6);
+  camera.lookAt(player.x + fx * 0.6, 1.15 - (player.pitch || 0) * 1.6, player.z + fz * 0.6);
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
