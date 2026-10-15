@@ -75,7 +75,7 @@ const meshes = places.map(p => {
   scene.add(g);
   return g;
 });
-const player = { x:0, z:-5, yaw:0 };
+const player = { x:0, z:-5, yaw:0, pitch:0 };
 let joy={x:0,y:0}, look=false, lx=0, selected=null, inside=false;
 const stick=document.getElementById("stick"), knob=document.getElementById("knob");
 stick.addEventListener("pointerdown", e => stick.setPointerCapture(e.pointerId));
@@ -86,7 +86,20 @@ stick.addEventListener("pointermove", e => {
   joy.y = Math.max(-1, Math.min(1, (e.clientY-r.top-52)/36));
   knob.style.left = 31+joy.x*26+"px"; knob.style.top = 31+joy.y*26+"px";
 });
-stick.addEventListener("pointerup", () => { joy={x:0,y:0}; knob.style.left="31px"; knob.style.top="31px"; });
+stick.addEventListener("pointerup", () => { joy={x:0,y:0};
+const lookpad = document.getElementById("lookpad");
+let ly = 0;
+if (lookpad) {
+  lookpad.addEventListener("pointerdown", e => { look = true; lx = e.clientX; ly = e.clientY; lookpad.setPointerCapture(e.pointerId); e.stopPropagation(); });
+  lookpad.addEventListener("pointermove", e => {
+    if (!look) return;
+    player.yaw += (e.clientX - lx) * 0.008;
+    player.pitch = Math.max(-0.7, Math.min(0.7, (player.pitch || 0) + (e.clientY - ly) * 0.005));
+    lx = e.clientX; ly = e.clientY;
+  });
+  lookpad.addEventListener("pointerup", () => { look = false; player.pitch = 0; });
+}
+ knob.style.left="31px"; knob.style.top="31px"; });
 renderer.domElement.addEventListener("pointerdown", e => {
   look = true; lx = e.clientX;
   const ray = new THREE.Raycaster();
@@ -125,15 +138,15 @@ act.onclick = () => {
 };
 function loop() {
   if (!inside) {
-    player.x += Math.sin(player.yaw)*joy.y*0.09 + Math.cos(player.yaw)*-joy.x*0.09;
-    player.z += Math.cos(player.yaw)*joy.y*0.09 + Math.sin(player.yaw)*joy.x*0.09;
+    player.x += Math.sin(player.yaw)*-joy.y*0.09 + Math.cos(player.yaw)*-joy.x*0.09;
+    player.z += Math.cos(player.yaw)*-joy.y*0.09 + Math.sin(player.yaw)*joy.x*0.09;
     player.x = Math.max(-14, Math.min(16, player.x));
     player.z = Math.max(-12, Math.min(14, player.z));
   }
   const px = inside && selected ? selected.position.x : player.x;
   const pz = inside && selected ? selected.position.z : player.z;
   camera.position.set(px, 1.6, pz);
-  camera.lookAt(px+Math.sin(player.yaw), 1.5, pz+Math.cos(player.yaw));
+  camera.lookAt(px+Math.sin(player.yaw), 1.5 - (player.pitch || 0) * 1.6, pz+Math.cos(player.yaw));
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
