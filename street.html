@@ -21,6 +21,8 @@
     #stick { left: auto; right: 16px; }
     #card { bottom: calc(136px + env(safe-area-inset-bottom)); }
   }
+  #lookpad { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; border: 1px dashed rgba(226,194,122,.45); touch-action: none; }
+  @media (max-width: 520px) { #stick { left: 16px !important; right: auto !important; } }
 </style>
 </head>
 <body>
@@ -41,6 +43,7 @@
   <button id="pass" style="display:none">Pass the key</button>
   <button id="hide">Close</button>
 </div>
+<div id="lookpad"></div>
 <div id="stick"><div id="knob"></div></div>
 <script type="module">
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
@@ -451,9 +454,13 @@ stick.addEventListener("pointermove", e => {
   knob.style.top = 31 + joy.y * 26 + "px";
 });
 stick.addEventListener("pointerup", () => { joy = { x: 0, y: 0 }; knob.style.left = "31px"; knob.style.top = "31px"; });
-renderer.domElement.addEventListener("pointerdown", e => { look = true; lx = e.clientX; });
+const lookpad = document.getElementById("lookpad");
+lookpad.addEventListener("pointerdown", e => { look = true; lx = e.clientX; lookpad.setPointerCapture(e.pointerId); e.stopPropagation(); });
+lookpad.addEventListener("pointermove", e => { if (look) { player.yaw += (e.clientX - lx) * 0.008; lx = e.clientX; } });
+lookpad.addEventListener("pointerup", () => look = false);
+renderer.domElement.addEventListener("pointerdown", e => { if (e.clientX > innerWidth * 0.55) { look = true; lx = e.clientX; } });
 addEventListener("pointerup", () => look = false);
-addEventListener("pointermove", e => { if (look) { player.yaw -= (e.clientX - lx) * 0.006; lx = e.clientX; } });
+addEventListener("pointermove", e => { if (look) { player.yaw += (e.clientX - lx) * 0.006; lx = e.clientX; } });
 
 function blocked(x, z) {
   return solids.some(s => x > s.minX - R && x < s.maxX + R && z > s.minZ - R && z < s.maxZ + R);
@@ -611,8 +618,8 @@ carry.addEventListener("click", () => {
 hide.addEventListener("click", () => { card.dataset.lock = "1"; card.style.display = "none"; });
 
 function loop() {
-  const nx = player.x + Math.sin(player.yaw) * -joy.y * 0.08 + Math.cos(player.yaw) * joy.x * 0.08;
-  const nz = player.z + Math.cos(player.yaw) * -joy.y * 0.08 - Math.sin(player.yaw) * joy.x * 0.08;
+  const nx = player.x + Math.sin(player.yaw) * joy.y * 0.08 + Math.cos(player.yaw) * -joy.x * 0.08;
+  const nz = player.z + Math.cos(player.yaw) * joy.y * 0.08 + Math.sin(player.yaw) * joy.x * 0.08;
   moveAxis(nx, nz);
   const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
   const near = doors.find(d => {
